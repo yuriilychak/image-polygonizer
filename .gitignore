@@ -12,3 +12,4 @@ coverage/
 target/
 Cargo.lock
 pkg/
+docs/
