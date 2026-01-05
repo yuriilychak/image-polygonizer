@@ -16,7 +16,9 @@ export default [
       commonjs(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false,
+        declaration: true,
+        declarationDir: './dist',
+        outDir: './dist',
       }),
     ],
   },

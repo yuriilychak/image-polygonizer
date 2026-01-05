@@ -32,6 +32,15 @@ export interface Point {
 }
 
 /**
+ * Image data structure for processing
+ */
+export interface ImageDataLike {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+}
+
+/**
  * Main polygonizer class for converting images to polygons
  */
 export class Polygonizer {
@@ -54,9 +63,16 @@ export class Polygonizer {
    * @param imageData - The image data to process
    * @returns Array of polygon points
    */
-  public polygonize(imageData: ImageData): Point[][] {
+  public polygonize(imageData: ImageDataLike): Point[][] {
     // Placeholder implementation
-    console.log('Processing image with options:', this.options);
+    console.log(
+      'Processing image with options:',
+      this.options,
+      'size:',
+      imageData.width,
+      'x',
+      imageData.height
+    );
     return [];
   }
 

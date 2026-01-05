@@ -1,7 +1,6 @@
 {
   "entryPoints": ["./src/index.ts"],
   "out": "docs",
-  "plugin": ["typedoc-plugin-markdown"],
   "name": "Image Polygonizer Documentation",
   "readme": "none",
   "excludePrivate": true,
