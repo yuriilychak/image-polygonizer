@@ -1,0 +1,25 @@
+[package]
+name = "image-polygonizer-algo"
+version = "0.0.1"
+authors = ["Image Polygonizer Team"]
+edition = "2021"
+description = "WebAssembly algorithms for image polygonization"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+wasm-bindgen = "0.2.89"
+console_error_panic_hook = { version = "0.1.7", optional = true }
+wee_alloc = { version = "0.4.5", optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.39"
+
+[profile.release]
+opt-level = "s"
+lto = true

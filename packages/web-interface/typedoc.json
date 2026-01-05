@@ -1,0 +1,9 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs",
+  "plugin": ["typedoc-plugin-markdown"],
+  "name": "Web Interface Documentation",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": true
+}
