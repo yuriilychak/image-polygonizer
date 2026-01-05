@@ -1,0 +1,8 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs",
+  "name": "Web Interface Documentation",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": true
+}

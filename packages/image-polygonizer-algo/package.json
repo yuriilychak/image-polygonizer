@@ -1,0 +1,22 @@
+{
+  "name": "image-polygonizer-algo",
+  "version": "0.0.1",
+  "description": "WebAssembly algorithms for image polygonization",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir dist --out-name index",
+    "dev": "wasm-pack build --dev --target web --out-dir dist --out-name index",
+    "clean": "rm -rf dist target"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "polygonizer",
+    "image-processing"
+  ],
+  "license": "MIT"
+}

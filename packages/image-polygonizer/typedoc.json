@@ -1,0 +1,8 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs",
+  "name": "Image Polygonizer Documentation",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeProtected": true
+}
