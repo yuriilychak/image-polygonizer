@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { ActionMenu } from './action-menu';
+import { WorkingArea } from './working-area';
 import './App.css';
 
 /**
@@ -6,17 +7,10 @@ import './App.css';
  * @returns The main App component
  */
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Image Polygonizer</h1>
-        <p>A browser-based polygonization tool for PNG/WebP assets</p>
-        <div className="card">
-          <button onClick={() => setCount(count => count + 1)}>count is {count}</button>
-        </div>
-      </header>
+    <div className="app-container">
+      <ActionMenu />
+      <WorkingArea />
     </div>
   );
 }

@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 coverage/
+.history/
 .turbo/
 *.log
 .DS_Store

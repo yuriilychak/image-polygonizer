@@ -1,0 +1,1 @@
+export { default as WorkingArea } from './component';
