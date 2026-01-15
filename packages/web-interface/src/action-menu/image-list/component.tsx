@@ -1,42 +1,41 @@
 import { ImageItem } from './image-item';
+import { MenuSection } from '../menu-section';
 import './component.css'
 
-const ImageList = () => {
+const ACTIONS = [{id: 'add-image', label: '+', title: 'Add new image'}];
 
-    return (
-        <div className='image-list-root'>
-            <div className='image-list-header'>
-                <span className="image-list-header-title">Images</span>
-                <button className="char-button" title="Add new image">+</button>
-            </div>
-            <div className='image-list-content'>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-                <ImageItem/>
-            </div>
-        </div>
-    )
-}
+const ImageList = () => (
+    <MenuSection 
+        title="Images" 
+        className="image-list-root"
+        contentClassName="image-list-content"
+        actions={ACTIONS}
+    >
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+            <ImageItem/>
+    </MenuSection>
+);
 
 export default ImageList;

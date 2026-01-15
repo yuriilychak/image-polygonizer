@@ -1,23 +1,4 @@
 .image-list-root {
-    width: 100%;
-    padding: 8px 16px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1;
-    border-top: 2px solid #2c3039;
-    overflow: hidden;
-}
-
-.image-list-header {
-    font-size: 16px;
-    font-weight: bold;
-    display: flex;
-    flex-direction: row;
-}
-
-.image-list-header-title {
     flex: 1;
 }
 
@@ -26,8 +7,5 @@
     scrollbar-color: #353941 transparent;
     flex: 1;
     overflow-y: auto;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
     gap: 8px;
 }
