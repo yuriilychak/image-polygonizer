@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { MenuSection } from '../menu-section';
 import { RangeInput } from './range-input';
 import { IMAGE_SETTING_RANGES, SETTING_ORDER } from './constants';
-import type { ImageConfig, SettingChangeCallback } from '../../types';
+import type { ImageSetting, SettingChangeCallback } from '../../types';
 import './component.css';
 
 type ImageDetailsProps = {
   disabled: boolean;
   onSettingChange: SettingChangeCallback;
-  imageConfig: ImageConfig;
+  imageConfig: ImageSetting;
 };
 
 const ImageDetails: FC<ImageDetailsProps> = ({ disabled, onSettingChange, imageConfig }) => {

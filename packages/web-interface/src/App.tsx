@@ -1,47 +1,90 @@
-import { useCallback } from 'react';
+import { useCallback, useReducer, ChangeEvent, useRef } from 'react';
 import { ActionMenu } from './action-menu';
 import { WorkingArea } from './working-area';
-import { ButtonAction, ButtonActionCallback, ImageActionCallback, ImageData, SettingChangeCallback } from './types';
+import { ButtonActionCallback, ImageActionCallback, ImageMetadata, SettingChangeCallback } from './types';
+import { INITIAL_STATE, REDUCER } from './reducer';
 import './App.css';
+
 
 /**
  * Main application component for the Image Polygonizer
  * @returns The main App component
  */
 const App = () => {
-  const images: ImageData[] = new Array(5).fill(null).map((_, index) => ({
-    id: `image-${index + 1}`,
-    label: `Image ${index + 1}`,
-    config: {
-      maxPointCount: 32,
-      alphaThreshold: 0,
-      minimalDistance: 8,
-    },
-  }));
-  const buttonActions: ButtonAction[] = ['generate', 'import', 'export', 'save'];
+  const [state, dispatch] = useReducer(REDUCER, INITIAL_STATE);
+  const imageLoaderRef = useRef<HTMLInputElement>(null);
+  const { images, currentImage, disabled, buttonActions } = state;
 
   const onActionClick: ButtonActionCallback = useCallback((action) => {
     console.log(`Action clicked: ${action}`);
   }, []);
 
   const onSettingChange: SettingChangeCallback = useCallback((id, value) => {
-    console.log(`Setting changed: ${id} = ${value}`);
+    dispatch({ type: 'updateImageConfig', payload: { id, value } });
   }, []);
 
   const onImageAction: ImageActionCallback = useCallback((action, id) => {
-    console.log(`Image action: ${action} on image ${id}`);
+    switch (action) {
+      case 'add':
+        imageLoaderRef.current?.click();
+        break;
+      case 'remove':
+        dispatch({ type: 'removeImage', payload: id });
+        break;
+      case 'select':
+        dispatch({ type: 'setCurrentImage', payload: id });
+        break;
+      case`check`:
+        dispatch({ type: 'toggleImage', payload: id });
+        break
+      default:
+        break;
+    }
+  }, []);
+
+  const onImageUpload = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const result: ImageMetadata[] = [];
+    const files = e.target.files;
+    if (!files) return;
+
+    dispatch({ type: 'setDisabled' });
+
+    for (let i = 0; i < files.length; ++i) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        try {
+          const bitmap = await createImageBitmap(file);
+          const metadata: ImageMetadata = {
+            label: file.name,
+            type: file.type,
+            src: bitmap
+          };
+          result.push(metadata);
+        } catch (error) {
+          console.error('Error processing file:', file.name, error);
+        }
+      }
+    }
+    
+    if (result.length > 0) {
+      dispatch({ type: 'addImages', payload: result });
+    }
+      
+    (e.target as HTMLInputElement).value = '';
   }, []);
 
   return (
     <div className="app-container">
       <ActionMenu
         images={images}
-        currentImage={images[0]}
-        disabled={false}
+        currentImage={currentImage}
+        disabled={disabled}
         buttonActions={buttonActions}
         onActionClick={onActionClick}
         onImageAction={onImageAction}
         onSettingChange={onSettingChange}
+        onImageUpload={onImageUpload}
+        imageLoaderRef={imageLoaderRef}
       />
       <WorkingArea />
     </div>

@@ -12,6 +12,11 @@
     border: none;
     transition-duration: 0.2s;
     animation-timing-function: ease-in-out;
+    border: 2px solid #353941;
+}
+
+.image-item-root-current {
+    border: 2px solid #88182f;
 }
 
 .image-item-root:hover {
@@ -29,9 +34,16 @@
     font-size: 14px;
 }
 
-.image-item-title {
+.image-item-title-wrapper {
     flex: 1;
     text-align: left;
+    overflow: hidden;
+}
+
+.image-item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .image-item-checkbox {

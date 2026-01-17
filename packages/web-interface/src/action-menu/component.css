@@ -51,3 +51,7 @@
 .action-menu-language-button:active {
     transform: scale(0.9);
 }
+
+.action-menu-image-loader {
+    display: none;
+}
