@@ -1,0 +1,21 @@
+{
+    "action_menu_title": "Image Polygonizer",
+    "menu_section_label_image_list": "Images",
+    "menu_section_label_actions": "Actions",
+    "menu_section_label_image_details": "Image details",
+    "menu_action_label_add": "+",
+    "menu_action_label_remove": "✕",
+    "menu_action_title_add": "Add new image",
+    "menu_action_title_remove": "Remove image",
+    "action_button_label_generate": "Generate",
+    "action_button_label_import": "Import",
+    "action_button_label_export": "Export",
+    "action_button_label_save": "Save",
+    "image_config_input_label_maxPointCount": "Max Point Count",
+    "image_config_input_label_alphaThreshold": "Alpha Threshold",
+    "image_config_input_label_minimalDistance": "Minimal Distance",
+    "image_config_input_help_maxPointCount": "Maximum point count allowed in result polygon",
+    "image_config_input_help_alphaThreshold": "Alpha threshold that will mark all alpha values below as empty area",
+    "image_config_input_help_minimalDistance": "Max distance from non optimized polygon to reduce point count during simplification",
+    "button_label_language": "Language"
+}

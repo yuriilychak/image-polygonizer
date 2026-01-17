@@ -1,0 +1,21 @@
+{
+    "action_menu_title": "Poligonizador de Imágenes",
+    "menu_section_label_image_list": "Imágenes",
+    "menu_section_label_actions": "Acciones",
+    "menu_section_label_image_details": "Detalles de imagen",
+    "menu_action_label_add": "+",
+    "menu_action_label_remove": "✕",
+    "menu_action_title_add": "Agregar nueva imagen",
+    "menu_action_title_remove": "Eliminar imagen",
+    "action_button_label_generate": "Generar",
+    "action_button_label_import": "Importar",
+    "action_button_label_export": "Exportar",
+    "action_button_label_save": "Guardar",
+    "image_config_input_label_maxPointCount": "Número Máximo de Puntos",
+    "image_config_input_label_alphaThreshold": "Umbral Alfa",
+    "image_config_input_label_minimalDistance": "Distancia Mínima",
+    "image_config_input_help_maxPointCount": "Número máximo de puntos permitidos en el polígono resultante",
+    "image_config_input_help_alphaThreshold": "Umbral alfa que marcará todos los valores alfa por debajo como área vacía",
+    "image_config_input_help_minimalDistance": "Distancia máxima desde el polígono no optimizado para reducir el conteo de puntos durante la simplificación",
+    "button_label_language": "Idioma"
+}

@@ -7,6 +7,22 @@
     flex-direction: row;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
+    color: #ffffff;
+    border: none;
+    transition-duration: 0.2s;
+    animation-timing-function: ease-in-out;
+}
+
+.image-item-root:hover {
+    background-color: #4b5060;
+    transform: scale(1.01);
+}
+
+.image-item-root:active {
+    background-color: #353941;
+    transform: scale(0.99);
+    color: #dddddd;
 }
 
 .image-item-remove-button {
@@ -15,6 +31,7 @@
 
 .image-item-title {
     flex: 1;
+    text-align: left;
 }
 
 .image-item-checkbox {

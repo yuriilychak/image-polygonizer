@@ -11,13 +11,14 @@
 
 @media screen and (min-width: 960px) {
     .action-menu {
-        width: 240px;
+        width: 360px;
         height: 100%;
     }
 }
 
 .action-menu-header {
     display: flex;
+    gap: 4px;
     flex-direction: row;
     align-items: center;
     font-size: 18px;
@@ -26,4 +27,27 @@
     box-sizing: border-box;
     border-bottom: 2px solid #88182f;
     border-top: 2px solid #2c3039;
+}
+
+.action-menu-header span:first-child {
+    flex: 1;
+}
+
+.action-menu-language-button {
+    cursor: pointer;
+    text-transform: uppercase;
+    background-color: transparent;
+    color: #ffffff;
+    border: none;
+    font: inherit;
+    transition-duration: 0.2s;
+    animation-timing-function: ease-in-out;
+}
+
+.action-menu-language-button:hover {
+    transform: scale(1.2);
+}
+
+.action-menu-language-button:active {
+    transform: scale(0.9);
 }

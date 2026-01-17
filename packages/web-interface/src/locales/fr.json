@@ -1,0 +1,21 @@
+{
+    "action_menu_title": "Polygoniseur d'Images",
+    "menu_section_label_image_list": "Images",
+    "menu_section_label_actions": "Actions",
+    "menu_section_label_image_details": "Détails de l'image",
+    "menu_action_label_add": "+",
+    "menu_action_label_remove": "✕",
+    "menu_action_title_add": "Ajouter une nouvelle image",
+    "menu_action_title_remove": "Supprimer l'image",
+    "action_button_label_generate": "Générer",
+    "action_button_label_import": "Importer",
+    "action_button_label_export": "Exporter",
+    "action_button_label_save": "Sauvegarder",
+    "image_config_input_label_maxPointCount": "Nombre Maximum de Points",
+    "image_config_input_label_alphaThreshold": "Seuil Alpha",
+    "image_config_input_label_minimalDistance": "Distance Minimale",
+    "image_config_input_help_maxPointCount": "Nombre maximum de points autorisé dans le polygone résultat",
+    "image_config_input_help_alphaThreshold": "Seuil alpha qui marquera toutes les valeurs alpha en dessous comme zone vide",
+    "image_config_input_help_minimalDistance": "Distance maximale par rapport au polygone non optimisé pour réduire le nombre de points pendant la simplification",
+    "button_label_language": "Langue"
+}

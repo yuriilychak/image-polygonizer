@@ -1,14 +1,35 @@
-import { MenuSection } from "../menu-section";
-import { RangeInput } from "./range-input";
+import { FC, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { MenuSection } from '../menu-section';
+import { RangeInput } from './range-input';
+import { IMAGE_SETTING_RANGES, SETTING_ORDER } from './constants';
+import type { ImageConfig, SettingChangeCallback } from '../../types';
 import './component.css';
 
+type ImageDetailsProps = {
+  disabled: boolean;
+  onSettingChange: SettingChangeCallback;
+  imageConfig: ImageConfig;
+};
 
-const ImageDetails = () => (
-    <MenuSection title="Image details" contentClassName="image-details-content">
-        <RangeInput id="maxPointCount" label="Maximum point count" min={1} max={100} value={50} title="Maximium point count alloved in result polyogn" />
-        <RangeInput id="alphaThreshold" label="Alpha threshold" min={0} max={256} value={0} title="Alpha trashold that will mark all alpha values below as empty area" />
-        <RangeInput id="minimalDistance" label="Minimal distance" min={1} max={256} value={8} title="Max distance from non optimized polygon to reduce point count during simplification"/>
+const ImageDetails: FC<ImageDetailsProps> = ({ disabled, onSettingChange, imageConfig }) => {
+  const { t } = useTranslation();
+  const title = t('menu_section_label_image_details');
+
+  return (
+    <MenuSection title={title} contentClassName="image-details-content">
+      {SETTING_ORDER.map(key => (
+        <RangeInput
+          {...IMAGE_SETTING_RANGES[key]}
+          key={key}
+          id={key}
+          value={imageConfig[key]}
+          disabled={disabled}
+          onChange={onSettingChange}
+        />
+      ))}
     </MenuSection>
-);
+  );
+};
 
-export default ImageDetails;
+export default memo(ImageDetails);

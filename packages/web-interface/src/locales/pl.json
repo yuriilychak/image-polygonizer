@@ -1,0 +1,21 @@
+{
+    "action_menu_title": "Poligonizator Obrazów",
+    "menu_section_label_image_list": "Obrazy",
+    "menu_section_label_actions": "Akcje",
+    "menu_section_label_image_details": "Szczegóły obrazu",
+    "menu_action_label_add": "+",
+    "menu_action_label_remove": "✕",
+    "menu_action_title_add": "Dodaj nowy obraz",
+    "menu_action_title_remove": "Usuń obraz",
+    "action_button_label_generate": "Generuj",
+    "action_button_label_import": "Importuj",
+    "action_button_label_export": "Eksportuj",
+    "action_button_label_save": "Zapisz",
+    "image_config_input_label_maxPointCount": "Maksymalna Liczba Punktów",
+    "image_config_input_label_alphaThreshold": "Próg Alfa",
+    "image_config_input_label_minimalDistance": "Minimalna Odległość",
+    "image_config_input_help_maxPointCount": "Maksymalna liczba punktów dozwolona w wynikowym wielokącie",
+    "image_config_input_help_alphaThreshold": "Próg alfa, który oznaczy wszystkie wartości alfa poniżej jako pusty obszar",
+    "image_config_input_help_minimalDistance": "Maksymalna odległość od nieoptymalnego wielokąta w celu zmniejszenia liczby punktów podczas upraszczania",
+    "button_label_language": "Język"
+}
