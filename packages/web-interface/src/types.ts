@@ -16,6 +16,8 @@ export interface ImageMetadata {
 export interface ImageConfig extends ImageMetadata {
     id: string;
     selected: boolean;
+    hasPolygons: boolean;
+    outdated: boolean;
     config: ImageSetting;
 };
 

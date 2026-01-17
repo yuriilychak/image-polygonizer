@@ -24,6 +24,8 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
     const newImages: ImageConfig[] = payload.map((metadata: ImageMetadata) => ({
       ...metadata,
       selected: false,
+      outdated: false,
+      hasPolygons: false,
       id: crypto.randomUUID(),
       config: { ...defaultConfig },
     }));
