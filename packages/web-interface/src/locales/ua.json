@@ -7,6 +7,8 @@
     "menu_action_label_remove": "✕",
     "menu_action_title_addImages": "Додати нове зображення",
     "menu_action_title_remove": "Видалити зображення",
+    "menu_action_title_rename": "Перейменувати зображення",
+    "menu_action_title_close_edit_mode": "Закрити режим редагування",
     "menu_action_title_polygons_missing": "Для цього зображення не згенеровано полігони",
     "menu_action_title_outdated_polygons": "Полігони застаріли, будь ласка, перегенеруйте",
     "action_button_label_generate": "Генерувати",

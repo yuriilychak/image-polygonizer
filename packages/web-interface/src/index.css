@@ -4,6 +4,7 @@ body {
   display: flex;
   width: 100vw;
   height: 100vh;
+  background-color: #151c22;
 }
 
 #root {
@@ -24,8 +25,9 @@ body {
   width: 18px;
   height: 18px;
   border-radius: 50%;
+  background-color: #6e6f73;
   color: #ffffff;
-  border: 2px solid #ffffff;
+  border: none;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
@@ -43,8 +45,7 @@ body {
 
 .char-button:disabled {
   cursor: not-allowed;
-  color: #777777;
-  border-color: #777777;
+  color: #aaaaaa;
 }
 
 .action-button {
@@ -78,18 +79,34 @@ body {
 }
 
 .help-icon {
+  user-select: none;
+  background-color: #6e6f73;
   cursor: help;
   font-weight: 700;
-    font-size: 14px;
-    padding: 2px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-  border: 2px solid #ffffff;
+  font-size: 14px;
+  padding: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   box-sizing: border-box;
 }
-  
 
+.warning-icon {
+  user-select: none;
+  background-color: #77061a;
+  color: #e81737;
+  cursor: help;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}

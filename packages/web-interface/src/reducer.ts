@@ -7,6 +7,7 @@ import {
   ImageMetadata,
   ImageConfig,
   SettingChangePayload,
+  ImageActionPayload,
 } from './types';
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
@@ -21,14 +22,14 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
     return { ...state, images, currentImage, disabled: false, buttonActions };
   },
-  removeImage: (state, id: string) => {
+  removeImage: (state, { id }: ImageActionPayload) => {
     const { currentImage: prevImage } = state;
     const removedImage = state.images.find(img => img.id === id);
 
     if (removedImage) {
       removedImage.src.close();
     }
-    
+
     const images = state.images.filter(img => img.id !== id);
     const currentImage = prevImage && prevImage.id === id ? images[0] || null : prevImage;
     const buttonActions = getButtonActions(images);
@@ -43,16 +44,16 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
     }
 
     const config = { ...prevImage.config, [id]: value };
-    const currentImage = { ...prevImage, outdated: true, config };
+    const currentImage = { ...prevImage, outdated: prevImage.hasPolygons, config };
     const images = prevImages.map(img => (img.id === currentImage.id ? currentImage : img));
 
     return { ...state, currentImage, images };
   },
-  setCurrentImage: (state, id: string) => ({
+  setCurrentImage: (state, { id }: ImageActionPayload) => ({
     ...state,
     currentImage: state.images.find(img => img.id === id) || null,
   }),
-  toggleImage: (state, id: string) => {
+  toggleImage: (state, { id }: ImageActionPayload) => {
     const images = state.images.map(img =>
       img.id === id ? { ...img, selected: !img.selected } : img
     );
@@ -61,6 +62,15 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
     return { ...state, images, buttonActions };
   },
   setDisabled: state => ({ ...state, disabled: true }),
+  setEnabled: state => ({ ...state, disabled: false }),
+  setHasCancelFileListener: (state, hasListener: boolean) => ({ ...state, hasCancelFileListener: hasListener }),
+  renameImage: (state, { id, data }: ImageActionPayload<string>) => {
+    const images = state.images.map(img =>
+      img.id === id ? { ...img, label: data || img.label } : img
+    );
+
+    return { ...state, images };
+  }
 };
 
 export const INITIAL_STATE: ReducerState = {
@@ -68,6 +78,7 @@ export const INITIAL_STATE: ReducerState = {
   currentImage: null,
   disabled: false,
   buttonActions: ['import'],
+  hasCancelFileListener: false,
 };
 
 export const REDUCER = (state: ReducerState, { type, payload }: ReducerEvent) =>

@@ -26,7 +26,7 @@ export function getButtonActions(images: ImageConfig[]): ButtonAction[] {
 export const imageMetadataToConfig = (metadata: ImageMetadata): ImageConfig => ({
     ...metadata,
     selected: false,
-    outdated: true,
+    outdated: false,
     hasPolygons: false,
     id: crypto.randomUUID(),
     config: { ...DEFAULT_CONFIG },
@@ -77,8 +77,8 @@ export async function filesToImageMetadataList(files: FileList): Promise<ImageMe
             try {
                 const bitmap = await createImageBitmap(file);
                 result.push({
-                    label: file.name,
-                    type: file.type,
+                    label: file.name.replace(/\.[^/.]+$/, ""),
+                    type: file.type.replace("image/", ""),
                     src: bitmap,
                 });
             } catch (error) {

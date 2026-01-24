@@ -1,11 +1,15 @@
-import { useCallback, useReducer, ChangeEvent, useRef } from 'react';
+import { useCallback, useReducer, ChangeEvent, useRef, useEffect } from 'react';
 import { ActionMenu } from './action-menu';
 import { WorkingArea } from './working-area';
-import { ButtonActionCallback, ImageActionCallback, ImageMetadata, SettingChangeCallback } from './types';
+import {
+  ButtonActionCallback,
+  ImageActionCallback,
+  ImageMetadata,
+  SettingChangeCallback,
+} from './types';
 import { INITIAL_STATE, REDUCER } from './reducer';
 import './App.css';
 import { filesToImageMetadataList } from './helpers';
-
 
 /**
  * Main application component for the Image Polygonizer
@@ -14,40 +18,65 @@ import { filesToImageMetadataList } from './helpers';
 const App = () => {
   const [state, dispatch] = useReducer(REDUCER, INITIAL_STATE);
   const imageLoaderRef = useRef<HTMLInputElement>(null);
-  const { images, currentImage, disabled, buttonActions } = state;
+  const { images, currentImage, disabled, buttonActions, hasCancelFileListener } = state;
 
-  const onActionClick: ButtonActionCallback = useCallback((action) => {
+  const onActionClick: ButtonActionCallback = useCallback(action => {
     console.log(`Action clicked: ${action}`);
     dispatch({ type: 'setDisabled' });
   }, []);
 
-  const onSettingChange: SettingChangeCallback = useCallback((id, value) => {
-    dispatch({ type: 'updateImageConfig', payload: { id, value } });
-  }, []);
+  const onSettingChange: SettingChangeCallback = useCallback(
+    (id, value) => dispatch({ type: 'updateImageConfig', payload: { id, value } }),
+    []
+  );
 
-  const onImageAction: ImageActionCallback = useCallback((type, payload) => {
-    if (type === 'addImages') {
-      imageLoaderRef.current?.click();
-    } else {
-      dispatch({ type, payload });
-    }
-  }, []);
+  const onCancelFileUpload = useCallback(() => dispatch({ type: 'setEnabled' }), []);
+
+  const onImageAction: ImageActionCallback = useCallback(
+    (type, id, data) => {
+      if (type !== 'addImages') {
+        dispatch({ type, payload: { id, data} });
+        return;
+      }
+
+      if (imageLoaderRef.current === null) {
+        return;
+      }
+
+      if (!hasCancelFileListener) {
+        imageLoaderRef.current.addEventListener('cancel', onCancelFileUpload);
+        dispatch({ type: 'setHasCancelFileListener', payload: true });
+      }
+
+      imageLoaderRef.current.click();
+
+      dispatch({ type: 'setDisabled' });
+    },
+    [onCancelFileUpload, hasCancelFileListener]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (imageLoaderRef.current && hasCancelFileListener) {
+        imageLoaderRef.current.removeEventListener('cancel', onCancelFileUpload);
+      }
+    };
+  }, [onCancelFileUpload, hasCancelFileListener]);
 
   const onImageUpload = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
 
     if (!files) {
+      dispatch({ type: 'setEnabled' });
       return;
     }
 
-    dispatch({ type: 'setDisabled' });
-
     const result: ImageMetadata[] = await filesToImageMetadataList(files);
-    
+
     if (result.length > 0) {
       dispatch({ type: 'addImages', payload: result });
     }
-      
+
     (e.target as HTMLInputElement).value = '';
   }, []);
 
@@ -64,7 +93,7 @@ const App = () => {
         onImageUpload={onImageUpload}
         imageLoaderRef={imageLoaderRef}
       />
-      <WorkingArea />
+      <WorkingArea src={currentImage?.src || null} />
     </div>
   );
 };

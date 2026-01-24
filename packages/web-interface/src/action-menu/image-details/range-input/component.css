@@ -15,10 +15,16 @@
 .range-input-value {
     width: 32px;
     text-align: right;
+    user-select: none;
 }
 
 .range-input-handler {
     flex: 1;
+}
+
+.range-input-handler:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .range-input-label {
@@ -27,6 +33,7 @@
     align-items: center;
     gap: 4px;
     flex-direction: row;
+    user-select: none;
 }
 
 .range-input-label-text {

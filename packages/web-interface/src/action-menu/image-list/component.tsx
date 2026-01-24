@@ -26,8 +26,9 @@ const ImageList: FC<ImageListProps> = ({ images, disabled, onImageAction, curren
       onAction={onImageAction}
       disabled={disabled}
     >
-      {images.map(({ id, label, selected, outdated, hasPolygons }) => (
+      {images.map(({ id, label, selected, outdated, hasPolygons, type }) => (
         <ImageItem
+          type={type}
           key={id}
           id={id}
           label={label}

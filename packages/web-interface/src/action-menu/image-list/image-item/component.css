@@ -6,7 +6,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     cursor: pointer;
     color: #ffffff;
     border: none;
@@ -43,6 +43,7 @@
     flex: 1;
     text-align: left;
     overflow: hidden;
+    user-select: none;
 }
 
 .image-item-title {
@@ -54,4 +55,34 @@
 .image-item-checkbox {
     background: transparent;
     border: 2px solid #ffffff;
+}
+
+.image-item-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.image-item-type-inicator {
+    text-transform: uppercase;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #dc113c;
+    padding: 2px;
+    font-weight: bold;
+    border-radius: 2px;
+    user-select: none;
+}
+
+.image-item-rename-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 15px;
+}
+
+.image-item-rename-input:focus {
+    outline: none;
 }

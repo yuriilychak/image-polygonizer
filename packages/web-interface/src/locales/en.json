@@ -7,6 +7,8 @@
     "menu_action_label_remove": "✕",
     "menu_action_title_addImages": "Add new image",
     "menu_action_title_remove": "Remove image",
+    "menu_action_title_rename": "Rename image",
+    "menu_action_title_close_edit_mode": "Close edit mode",
     "menu_action_title_polygons_missing": "No polygons generated for this image",
     "menu_action_title_outdated_polygons": "Polygons are outdated, please regenerate",
     "action_button_label_generate": "Generate",
