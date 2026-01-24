@@ -4,7 +4,9 @@ export type ButtonAction = 'generate' | 'import' | 'export' | 'save';
 
 export type ImageConfigKey = 'maxPointCount' | 'alphaThreshold' | 'minimalDistance';
 
-export type CharAction = 'add' | 'remove' | 'select' | 'check';
+export type ReducerAction = 'init' | 'addImages' | 'removeImage' | 'updateImageConfig' | 'setCurrentImage' | 'setDisabled' | 'toggleImage';
+
+export type CharAction = ReducerAction;
 
 export type ImageSetting = Record<ImageConfigKey, number>;
 
@@ -25,7 +27,7 @@ export type ButtonActionCallback = (action: ButtonAction) => void;
 
 export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 
-export type ImageActionCallback = (action: string, id: string) => void;
+export type ImageActionCallback = (action: ReducerAction, id: string) => void;
 
 export type ReducerState = {
     images: ImageConfig[];
@@ -33,8 +35,6 @@ export type ReducerState = {
     disabled: boolean;
     buttonActions: ButtonAction[];
 };
-
-export type ReducerAction = 'init' | 'addImages' | 'removeImage' | 'updateImageConfig' | 'setCurrentImage' | 'setDisabled' | 'toggleImage';
 
 export type ReducerMiddleware = (state: ReducerState, payload?: any) => ReducerState;
 

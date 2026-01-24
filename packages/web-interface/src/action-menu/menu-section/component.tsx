@@ -10,11 +10,13 @@ type MenuSectionProps = {
   contentClassName?: string;
   actions?: CharAction[];
   onAction?: ImageActionCallback;
+  disabled?: boolean;
 };
 
 const MenuSection: FC<MenuSectionProps> = ({
   title,
   children,
+  disabled = false,
   className = '',
   contentClassName = '',
   actions = [],
@@ -22,7 +24,7 @@ const MenuSection: FC<MenuSectionProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const handleAction = (e: MouseEvent<HTMLButtonElement>) => 
+  const handleAction = (e: MouseEvent<HTMLButtonElement>) =>
     onAction(e.currentTarget.id as CharAction, '');
 
   return (
@@ -31,7 +33,14 @@ const MenuSection: FC<MenuSectionProps> = ({
         <span className="menu-section-title">{title}</span>
         <div>
           {actions.map(action => (
-            <button id={action} key={action} className="char-button" title={t(`menu_action_title_${action}`)} onClick={handleAction}>
+            <button
+              id={action}
+              key={action}
+              className="char-button"
+              title={t(`menu_action_title_${action}`)}
+              onClick={handleAction}
+              disabled={disabled}
+            >
               {t(`menu_action_label_${action}`)}
             </button>
           ))}

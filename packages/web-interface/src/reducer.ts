@@ -1,11 +1,10 @@
-import { getButtonActions } from './helpers';
+import { getButtonActions, imageMetadataToConfig } from './helpers';
 import {
   ReducerAction,
   ReducerEvent,
   ReducerMiddleware,
   ReducerState,
   ImageMetadata,
-  ImageSetting,
   ImageConfig,
   SettingChangePayload,
 } from './types';
@@ -13,77 +12,53 @@ import {
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
   init: state => state,
   addImages: (state, payload: ImageMetadata[]) => {
-    if (!Array.isArray(payload)) return state;
+    const newImages: ImageConfig[] = payload.map((metadata: ImageMetadata) =>
+      imageMetadataToConfig(metadata)
+    );
+    const images = state.images.concat(newImages);
+    const buttonActions = getButtonActions(images);
+    const currentImage = state.currentImage || newImages[0];
 
-    const defaultConfig: ImageSetting = {
-      maxPointCount: 100,
-      alphaThreshold: 0.5,
-      minimalDistance: 10,
-    };
-
-    const newImages: ImageConfig[] = payload.map((metadata: ImageMetadata) => ({
-      ...metadata,
-      selected: false,
-      outdated: false,
-      hasPolygons: false,
-      id: crypto.randomUUID(),
-      config: { ...defaultConfig },
-    }));
-    return {
-      ...state,
-      images: [...state.images, ...newImages],
-      currentImage: state.currentImage || newImages[0],
-      disabled: false,
-      buttonActions: getButtonActions([...state.images, ...newImages]),
-    };
+    return { ...state, images, currentImage, disabled: false, buttonActions };
   },
-  removeImage: (state, imageId: string) => {
-    const newImages = state.images.filter(img => img.id !== imageId);
-    let newCurrentImage = state.currentImage;
+  removeImage: (state, id: string) => {
+    const { currentImage: prevImage } = state;
+    const removedImage = state.images.find(img => img.id === id);
 
-    if (state.currentImage?.id === imageId) {
-      newCurrentImage = newImages.length > 0 ? newImages[0] : null;
+    if (removedImage) {
+      removedImage.src.close();
     }
+    
+    const images = state.images.filter(img => img.id !== id);
+    const currentImage = prevImage && prevImage.id === id ? images[0] || null : prevImage;
+    const buttonActions = getButtonActions(images);
 
-    return {
-      ...state,
-      images: newImages,
-      currentImage: newCurrentImage,
-      buttonActions: getButtonActions(newImages),
-    };
+    return { ...state, images, currentImage, buttonActions };
   },
   updateImageConfig: (state, { id, value }: SettingChangePayload) => {
-    const { currentImage, images } = state;
-    if (!currentImage) return state;
+    const { currentImage: prevImage, images: prevImages } = state;
 
-    const nextImage = {
-      ...currentImage,
-      config: { ...currentImage.config, [id]: value },
-    } as ImageConfig;
+    if (!prevImage) {
+      return state;
+    }
 
-    return {
-      ...state,
-      currentImage: nextImage,
-      images: images.map(img => (img.id === id ? nextImage : img)),
-    };
+    const config = { ...prevImage.config, [id]: value };
+    const currentImage = { ...prevImage, outdated: true, config };
+    const images = prevImages.map(img => (img.id === currentImage.id ? currentImage : img));
+
+    return { ...state, currentImage, images };
   },
-  setCurrentImage: (state, imageId: string) => {
-    const image = state.images.find(img => img.id === imageId);
-    return {
-      ...state,
-      currentImage: image || null,
-    };
-  },
-  toggleImage: (state, imageId: string) => {
-    const newImages = state.images.map(img =>
-      img.id === imageId ? { ...img, selected: !img.selected } : img
+  setCurrentImage: (state, id: string) => ({
+    ...state,
+    currentImage: state.images.find(img => img.id === id) || null,
+  }),
+  toggleImage: (state, id: string) => {
+    const images = state.images.map(img =>
+      img.id === id ? { ...img, selected: !img.selected } : img
     );
+    const buttonActions = getButtonActions(images);
 
-    return {
-      ...state,
-      images: newImages,
-      buttonActions: getButtonActions(newImages),
-    };
+    return { ...state, images, buttonActions };
   },
   setDisabled: state => ({ ...state, disabled: true }),
 };

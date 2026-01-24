@@ -1,6 +1,6 @@
-import { FC, MouseEvent, ChangeEvent, memo } from 'react';
+import { FC, MouseEventHandler, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CharAction, ImageActionCallback } from '../../../types';
+import { ImageActionCallback, ReducerAction } from '../../../types';
 import './component.css';
 
 type ImageItemProps = {
@@ -8,40 +8,74 @@ type ImageItemProps = {
   label: string;
   disabled: boolean;
   selected: boolean;
+  outdated: boolean;
+  hasPolygons: boolean;
   isCurrent: boolean;
   onAction: ImageActionCallback;
 };
 
-const ImageItem: FC<ImageItemProps> = ({ id, label, disabled, selected, isCurrent, onAction }) => {
+function getRootStyles(isCurrent: boolean, disabled: boolean): string {
+  const result = ['image-item-root'];
+
+  if (isCurrent) {
+    result.push('image-item-root-current');
+  }
+
+  if (disabled) {
+    result.push('image-item-root-disabled');
+  }
+
+  return result.join(' ');
+}
+
+const ImageItem: FC<ImageItemProps> = ({
+  id,
+  label,
+  disabled,
+  selected,
+  outdated,
+  hasPolygons,
+  isCurrent,
+  onAction,
+}) => {
   const { t } = useTranslation();
 
-  const handleAction = (e: MouseEvent<HTMLElement> | ChangeEvent<HTMLInputElement>) => {
+  const handleAction: MouseEventHandler<HTMLElement> = e => {
+    onAction(e.currentTarget.id as ReducerAction, id);
     e.stopPropagation();
-    onAction(e.currentTarget.id as CharAction, id);
   };
 
-  const currentClassName = isCurrent ? ' image-item-root-current' : '';
+  const rootStyles = getRootStyles(isCurrent, disabled);
 
   return (
-    <button
-      className={`image-item-root${currentClassName}`}
+    <div
+      className={rootStyles}
       onClick={handleAction}
-      id="select"
-      disabled={disabled}
+      id="setCurrentImage"
     >
       <input
         type="checkbox"
         className="image-item-checkbox"
-        id="check"
-        onChange={handleAction}
+        id="toggleImage"
+        onClick={handleAction}
         disabled={disabled}
         checked={selected}
       />
       <div className="image-item-title-wrapper">
         <div className="image-item-title">{label}</div>
       </div>
+      {outdated && (
+        <div className="help-icon" title={t('menu_action_title_outdated_polygons')}>
+          ﹡
+        </div>
+      )}
+      {!hasPolygons && (
+        <div className="help-icon" title={t('menu_action_title_polygons_missing')}>
+          !
+        </div>
+      )}
       <button
-        id="remove"
+        id="removeImage"
         disabled={disabled}
         className="char-button image-item-remove-button"
         title={t('menu_action_title_remove')}
@@ -49,7 +83,7 @@ const ImageItem: FC<ImageItemProps> = ({ id, label, disabled, selected, isCurren
       >
         {t('menu_action_label_remove')}
       </button>
-    </button>
+    </div>
   );
 };
 

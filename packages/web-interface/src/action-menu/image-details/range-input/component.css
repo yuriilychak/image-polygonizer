@@ -32,14 +32,3 @@
 .range-input-label-text {
     flex: 1;
 }
-
-.range-input-label-help {
-    cursor: help;
-    height: 16px;
-    width: 16px;
-    border-radius: 50%;
-    border: 2px solid #ffffff;
-    display: flex;
-    justify-content: center;
-    align-items: center;    
-}

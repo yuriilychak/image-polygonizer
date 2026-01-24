@@ -15,6 +15,11 @@
     border: 2px solid #353941;
 }
 
+.image-item-root-disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 .image-item-root-current {
     border: 2px solid #88182f;
 }

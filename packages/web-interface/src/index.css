@@ -17,19 +17,20 @@ body {
   padding: 0;
   margin: 0;
   background-color: transparent;
-  color: inherit;
-  font: inherit;
   cursor: pointer;
+  font-weight: 700;
   font-size: 14px;
   padding: 2px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
+  color: #ffffff;
   border: 2px solid #ffffff;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   transition-duration: 0.2s;
+  animation-timing-function: ease-in-out;
 }
 
 .char-button:hover {
@@ -38,6 +39,12 @@ body {
 
 .char-button:active {
   transform: scale(0.9);
+}
+
+.char-button:disabled {
+  cursor: not-allowed;
+  color: #777777;
+  border-color: #777777;
 }
 
 .action-button {
@@ -61,6 +68,28 @@ body {
   background-color: #353941;
   transform: scale(0.98);
   color: #dddddd;
+}
+
+.action-button:disabled {
+  background-color: #2c3039;
+  color: #777777;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.help-icon {
+  cursor: help;
+  font-weight: 700;
+    font-size: 14px;
+    padding: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+  border: 2px solid #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
 }
   
 
