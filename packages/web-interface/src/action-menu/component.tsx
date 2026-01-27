@@ -1,6 +1,7 @@
 import { ImageList } from './image-list';
 import { ImageDetails } from './image-details';
 import { ActionsSection } from './actions-section';
+import { IMAGE_INPUT_ACCEPT } from '../constants';
 
 import type { FC, ChangeEventHandler, MouseEventHandler, RefObject } from 'react';
 import type { TFunction } from 'i18next';
@@ -9,6 +10,7 @@ import type {
     ButtonActionCallback,
     ImageActionCallback,
     ImageConfig,
+    LanguageKey,
     SettingChangeCallback,
 } from '../types';
 
@@ -16,7 +18,7 @@ import './component.css';
 
 type ActionMenuProps = {
     images: ImageConfig[];
-    currentLanguage: string;
+    currentLanguage: LanguageKey;
     currentImage: ImageConfig | null;
     imageLoaderRef: RefObject<HTMLInputElement>;
     buttonActions: ButtonAction[];
@@ -69,11 +71,16 @@ const ActionMenu: FC<ActionMenuProps> = ({
                 imageConfig={currentImage.config}
             />
         )}
-        <ActionsSection t={t} actions={buttonActions} onActionClick={onActionClick} disabled={disabled} />
+        <ActionsSection
+            t={t}
+            actions={buttonActions}
+            onActionClick={onActionClick}
+            disabled={disabled}
+        />
         <input
             id="image-upload-input"
             type="file"
-            accept="image/png,image/webp,.png,.webp"
+            accept={IMAGE_INPUT_ACCEPT}
             multiple
             className="action-menu-image-loader"
             onChange={onImageUpload}

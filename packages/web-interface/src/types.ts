@@ -19,6 +19,10 @@ export type ReducerAction =
   | 'resetAction'
   | 'switchLanguage';
 
+export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua'; 
+
+export type SupportedImageFormats = 'png' | 'webp';
+
 export type CharAction = ReducerAction;
 
 export type ImageSetting = Record<ImageConfigKey, number>;
@@ -47,7 +51,7 @@ export type ReducerState = {
   isInit: boolean;
   currentAction: ButtonAction;
   currentImage: ImageConfig | null;
-  currentLanguage: string;
+  currentLanguage: LanguageKey;
   imagePolygonizer: ImagePolygonizer;
   images: ImageConfig[];
   disabled: boolean;
