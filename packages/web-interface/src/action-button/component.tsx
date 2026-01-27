@@ -1,6 +1,5 @@
-
-import { useCallback } from 'react';
-import type { MouseEventHandler} from 'react';
+import { useCallback, memo } from 'react';
+import type { MouseEventHandler } from 'react';
 
 type ActionButtonProps<T extends string> = {
     imageId?: string;
@@ -19,16 +18,19 @@ function ActionButton<T extends string>({
     disabled,
     imageId = '',
 }: ActionButtonProps<T>) {
-    const handleClick: MouseEventHandler<HTMLButtonElement> = useCallback((e) => {
-        e.stopPropagation();
-        onAction(action, imageId);
-    }, [action, imageId, onAction]);
+    const handleClick: MouseEventHandler<HTMLButtonElement> = useCallback(
+        e => {
+            e.stopPropagation();
+            onAction(action, imageId);
+        },
+        [action, imageId, onAction]
+    );
 
     return (
         <button className="char-button" title={title} onClick={handleClick} disabled={disabled}>
             {label}
         </button>
     );
-};
+}
 
-export default ActionButton;
+export default memo(ActionButton);
