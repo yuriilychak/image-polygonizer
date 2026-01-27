@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MenuSection } from '../menu-section';
+import { MenuSection } from '../shared';
 import { RangeInput } from './range-input';
 import { IMAGE_SETTING_RANGES, SETTING_ORDER } from './constants';
 

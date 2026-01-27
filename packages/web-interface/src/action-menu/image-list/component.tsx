@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { ImageItem } from './image-item';
-import { MenuSection } from '../menu-section';
+import { MenuSection } from '../shared';
 
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
@@ -18,7 +18,13 @@ type ImageListProps = {
     onImageAction: ImageActionCallback;
 };
 
-const ImageList: FC<ImageListProps> = ({ t, images, disabled, onImageAction, currentImageId = '' }) => (
+const ImageList: FC<ImageListProps> = ({
+    t,
+    images,
+    disabled,
+    onImageAction,
+    currentImageId = '',
+}) => (
     <MenuSection
         t={t}
         titleKey="menu_section_label_image_list"

@@ -1,11 +1,12 @@
 import { memo } from 'react';
+import { ActionButton } from '../action-button';
+import { NOOP } from '../../../constants';
 
-import type { FC, ReactNode, MouseEvent } from 'react';
+import type { FC, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
-import type { ReducerAction, ImageActionCallback } from '../../types';
+import type { ReducerAction, ImageActionCallback } from '../../../types';
 
 import './component.css';
-import { ActionButton } from '../../action-button';
 
 type MenuSectionProps = {
     t: TFunction;
@@ -26,7 +27,7 @@ const MenuSection: FC<MenuSectionProps> = ({
     className = '',
     contentClassName = '',
     actions = [],
-    onAction = () => {},
+    onAction = NOOP,
 }) => (
     <div className={`menu-section-root ${className}`}>
         <div className="menu-section-header">
@@ -34,12 +35,11 @@ const MenuSection: FC<MenuSectionProps> = ({
             <div>
                 {actions.map(action => (
                     <ActionButton
+                        t={t}
                         action={action}
                         key={action}
-                        title={t(`menu_action_title_${action}`)}
                         onAction={onAction}
                         disabled={disabled}
-                        label={t(`menu_action_label_${action}`)}
                     />
                 ))}
             </div>

@@ -1,19 +1,20 @@
 import { useCallback, memo } from 'react';
+import { ID_TO_CHAR } from '../constants';
+
 import type { MouseEventHandler } from 'react';
+import type { TFunction } from 'i18next';
 
 type ActionButtonProps<T extends string> = {
+    t: TFunction;
     imageId?: string;
     action: T;
-    title: string;
-    label: string;
     disabled: boolean;
     onAction(action: T, imageId: string): void;
 };
 
 function ActionButton<T extends string>({
+    t,
     action,
-    title,
-    label,
     onAction,
     disabled,
     imageId = '',
@@ -27,8 +28,13 @@ function ActionButton<T extends string>({
     );
 
     return (
-        <button className="char-button" title={title} onClick={handleClick} disabled={disabled}>
-            {label}
+        <button
+            className="char-button"
+            title={t(`menu_action_title_${action}`)}
+            onClick={handleClick}
+            disabled={disabled}
+        >
+            {ID_TO_CHAR[action]}
         </button>
     );
 }

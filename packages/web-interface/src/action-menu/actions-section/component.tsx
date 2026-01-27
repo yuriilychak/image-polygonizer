@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { MenuSection } from '../menu-section';
+import { MenuSection } from '../shared';
 
 import type { FC, MouseEventHandler } from 'react';
 import type { TFunction } from 'i18next';
