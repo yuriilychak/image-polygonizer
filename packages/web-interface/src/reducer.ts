@@ -1,6 +1,8 @@
-import { getButtonActions, imageMetadataToConfig } from './helpers';
 import { ImagePolygonizer } from 'image-polygonizer';
-import {
+import { getButtonActions, imageMetadataToConfig } from './helpers';
+import { LANGUAGE_LIST } from './constants';
+
+import type {
   ReducerAction,
   ReducerEvent,
   ReducerMiddleware,
@@ -9,12 +11,11 @@ import {
   ImageConfig,
   SettingChangePayload,
   ImageActionPayload,
+  ButtonAction,
 } from './types';
 
-console.log('POLY', ImagePolygonizer);
-
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
-  init: state => state,
+  init: state => ({ ...state, isInit: true }),
   addImages: (state, payload: ImageMetadata[]) => {
     const newImages: ImageConfig[] = payload.map((metadata: ImageMetadata) =>
       imageMetadataToConfig(metadata)
@@ -67,18 +68,30 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
   setDisabled: state => ({ ...state, disabled: true }),
   setEnabled: state => ({ ...state, disabled: false }),
   setHasCancelFileListener: (state, hasListener: boolean) => ({ ...state, hasCancelFileListener: hasListener }),
-  renameImage: (state, { id, data }: ImageActionPayload<string>) => {
-    const images = state.images.map(img =>
+  renameImage: ({ images, ...state }, { id, data }: ImageActionPayload<string>) => ({
+    ...state,
+    images: images.map(img =>
       img.id === id ? { ...img, label: data || img.label } : img
-    );
+    )
+  }),
+  setAction: (state, currentAction: ButtonAction) => ({ ...state, currentAction, disabled: true }),
+  resetAction: (state) => ({ ...state, currentAction: 'none', disabled: false }),
+  switchLanguage: ({ languageIndex: prevIndex, ...state }) => {
+    const languageIndex = (prevIndex + 1) % LANGUAGE_LIST.length;
+    const currentLanguage = LANGUAGE_LIST[languageIndex];
 
-    return { ...state, images };
-  }
+    return { ...state, languageIndex, currentLanguage };
+  },
 };
 
 export const INITIAL_STATE: ReducerState = {
+  languageIndex: 0,
+  isInit: false,
+  imagePolygonizer: new ImagePolygonizer(),
   images: [],
+  currentAction: 'none',
   currentImage: null,
+  currentLanguage: LANGUAGE_LIST[0],
   disabled: false,
   buttonActions: ['import'],
   hasCancelFileListener: false,

@@ -1,6 +1,9 @@
-import { FC, MouseEventHandler, ChangeEventHandler, memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImageActionCallback, ReducerAction } from '../../../types';
+
+import type { FC, MouseEventHandler, ChangeEventHandler } from 'react';
+import type { ImageActionCallback, ReducerAction } from '../../../types';
+
 import './component.css';
 
 type ImageItemProps = {

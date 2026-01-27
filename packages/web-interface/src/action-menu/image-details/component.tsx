@@ -1,35 +1,39 @@
-import { FC, memo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { memo } from 'react';
 import { MenuSection } from '../menu-section';
 import { RangeInput } from './range-input';
 import { IMAGE_SETTING_RANGES, SETTING_ORDER } from './constants';
+
+import type { FC } from 'react';
+import type { TFunction } from 'i18next';
 import type { ImageSetting, SettingChangeCallback } from '../../types';
+
 import './component.css';
 
 type ImageDetailsProps = {
-  disabled: boolean;
-  onSettingChange: SettingChangeCallback;
-  imageConfig: ImageSetting;
+    t: TFunction;
+    disabled: boolean;
+    onSettingChange: SettingChangeCallback;
+    imageConfig: ImageSetting;
 };
 
-const ImageDetails: FC<ImageDetailsProps> = ({ disabled, onSettingChange, imageConfig }) => {
-  const { t } = useTranslation();
-  const title = t('menu_section_label_image_details');
-
-  return (
-    <MenuSection title={title} contentClassName="image-details-content">
-      {SETTING_ORDER.map(key => (
-        <RangeInput
-          {...IMAGE_SETTING_RANGES[key]}
-          key={key}
-          id={key}
-          value={imageConfig[key]}
-          disabled={disabled}
-          onChange={onSettingChange}
-        />
-      ))}
+const ImageDetails: FC<ImageDetailsProps> = ({ t, disabled, onSettingChange, imageConfig }) => (
+    <MenuSection
+        t={t}
+        titleKey="menu_section_label_image_details"
+        contentClassName="image-details-content"
+    >
+        {SETTING_ORDER.map(key => (
+            <RangeInput
+                {...IMAGE_SETTING_RANGES[key]}
+                key={key}
+                id={key}
+                t={t}
+                value={imageConfig[key]}
+                disabled={disabled}
+                onChange={onSettingChange}
+            />
+        ))}
     </MenuSection>
-  );
-};
+);
 
 export default memo(ImageDetails);

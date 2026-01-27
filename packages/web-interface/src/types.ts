@@ -1,4 +1,6 @@
-export type ButtonAction = 'generate' | 'import' | 'export' | 'save';
+import { ImagePolygonizer } from "image-polygonizer";
+
+export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
 
 export type ImageConfigKey = 'maxPointCount' | 'alphaThreshold' | 'minimalDistance';
 
@@ -12,7 +14,10 @@ export type ReducerAction =
   | 'setEnabled'
   | 'toggleImage'
   | 'setHasCancelFileListener'
-  | 'renameImage';
+  | 'renameImage'
+  | 'setAction'
+  | 'resetAction'
+  | 'switchLanguage';
 
 export type CharAction = ReducerAction;
 
@@ -38,8 +43,13 @@ export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
 
 export type ReducerState = {
-  images: ImageConfig[];
+  languageIndex: number;
+  isInit: boolean;
+  currentAction: ButtonAction;
   currentImage: ImageConfig | null;
+  currentLanguage: string;
+  imagePolygonizer: ImagePolygonizer;
+  images: ImageConfig[];
   disabled: boolean;
   buttonActions: ButtonAction[];
   hasCancelFileListener: boolean;

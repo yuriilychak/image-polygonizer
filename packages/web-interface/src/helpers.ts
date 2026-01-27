@@ -1,4 +1,5 @@
 import { DEFAULT_CONFIG } from './constants';
+
 import type { ButtonAction, ImageConfig, ImageMetadata } from './types';
 
 export function getButtonActions(images: ImageConfig[]): ButtonAction[] {

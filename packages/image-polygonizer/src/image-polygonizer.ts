@@ -1,3 +1,5 @@
+
+
 export default class ImagePolygonizer {
     constructor() {
         // Initialization code here
