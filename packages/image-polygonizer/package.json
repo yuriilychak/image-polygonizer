@@ -2,13 +2,13 @@
   "name": "image-polygonizer",
   "version": "0.0.1",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/image-polygonizer.js",
+  "module": "./dist/image-polygonizer.js",
+  "types": "./dist/image-polygonizer.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/image-polygonizer.js",
+      "types": "./dist/image-polygonizer.d.ts"
     }
   },
   "files": [

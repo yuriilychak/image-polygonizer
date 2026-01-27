@@ -4,27 +4,29 @@ import commonjs from '@rollup/plugin-commonjs';
 import dts from 'rollup-plugin-dts';
 
 export default [
-  {
-    input: 'src/index.ts',
-    output: {
-      file: 'dist/index.js',
-      format: 'es',
-      sourcemap: true,
+    {
+        input: 'src/index.ts',
+        output: {
+            file: 'dist/image-polygonizer.js',
+            format: 'esm',
+            sourcemap: true,
+        },
+        plugins: [
+            resolve(),
+            commonjs(),
+            typescript({
+                tsconfig: './tsconfig.json',
+                declaration: false,
+                declarationMap: false,
+            }),
+        ],
     },
-    plugins: [
-      resolve(),
-      commonjs(),
-      typescript({
-        tsconfig: './tsconfig.json',
-      }),
-    ],
-  },
-  {
-    input: 'src/index.ts',
-    output: {
-      file: 'dist/index.d.ts',
-      format: 'es',
+    {
+        input: 'src/index.ts',
+        output: {
+            file: 'dist/image-polygonizer.d.ts',
+            sourcemap: false,
+        },
+        plugins: [resolve(), dts()],
     },
-    plugins: [dts()],
-  },
 ];

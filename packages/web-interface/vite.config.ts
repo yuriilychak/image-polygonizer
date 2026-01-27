@@ -7,6 +7,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      external: ['image-polygonizer'],
+    },
   },
   server: {
     port: 3000,

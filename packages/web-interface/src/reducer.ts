@@ -1,4 +1,5 @@
 import { getButtonActions, imageMetadataToConfig } from './helpers';
+import { ImagePolygonizer } from 'image-polygonizer';
 import {
   ReducerAction,
   ReducerEvent,
@@ -9,6 +10,8 @@ import {
   SettingChangePayload,
   ImageActionPayload,
 } from './types';
+
+console.log('POLY', ImagePolygonizer);
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
   init: state => state,
