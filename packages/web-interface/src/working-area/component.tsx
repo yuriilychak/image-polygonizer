@@ -6,10 +6,10 @@ import type { FC } from 'react';
 import './component.css';
 
 type WorkingAreaProps = {
-    src: ImageBitmap | null;
+    src?: ImageBitmap | null;
 };
 
-const WorkingArea: FC<WorkingAreaProps> = ({ src }) => {
+const WorkingArea: FC<WorkingAreaProps> = ({ src = null }) => {
     const rootRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });

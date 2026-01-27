@@ -1,10 +1,11 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { FC, MouseEventHandler, ChangeEventHandler } from 'react';
 import type { ImageActionCallback, ReducerAction } from '../../../types';
 
 import './component.css';
+import { ActionButton } from '../../../action-button';
 
 type ImageItemProps = {
   id: string;
@@ -54,25 +55,30 @@ const ImageItem: FC<ImageItemProps> = ({
     setRenameMode(false);
   }, [label, disabled]);
 
+  useEffect(() => {
+      setLocalName(label);
+  }, [label, renameMode]);
+
+  const handleButtonAction = useCallback((action: string, imageId: string) => {
+      switch (action) {
+          case 'openEditMode':
+              setRenameMode(true);
+              break;
+          case 'closeEditMode':
+              setRenameMode(false);
+              break;
+          case 'renameImage':
+              onAction(action as ReducerAction, imageId, localName);
+              setRenameMode(false);
+              break;
+          default:
+              onAction(action as ReducerAction, imageId);
+      }
+  }, [localName, onAction]);
+
   const handleAction: MouseEventHandler<HTMLElement> = e => {
-    const action = e.currentTarget.id;
-
-    switch (action) {
-      case 'openEditMode':
-        setRenameMode(true);
-        break;
-      case 'closeEditMode':
-        setLocalName(label);
-        setRenameMode(false);
-        break;
-      default:
-        onAction(action as ReducerAction, id, localName);
-        if (action === 'renameImage') {
-          setRenameMode(false);
-        }
-    }
-
     e.stopPropagation();
+    onAction(e.currentTarget.id as ReducerAction, id, localName);
   };
 
   const rootStyles = getRootStyles(isCurrent, disabled);
@@ -115,45 +121,41 @@ const ImageItem: FC<ImageItemProps> = ({
           )}
           {renameMode ? (
               <>
-                  <button
-                      id="renameImage"
+                  <ActionButton
+                      imageId={id}
+                      action="renameImage"
                       disabled={disabled || localName.trim() === '' || localName === label}
-                      className="char-button image-item-remove-button"
                       title={t('menu_action_title_rename')}
-                      onClick={handleAction}
-                  >
-                      ✓
-                  </button>
-                  <button
-                      id="closeEditMode"
+                      onAction={handleButtonAction}
+                      label="✓"
+                  />
+                  <ActionButton
+                      imageId={id}
+                      action="closeEditMode"
                       disabled={disabled}
-                      className="char-button image-item-remove-button"
                       title={t('menu_action_title_close_edit_mode')}
-                      onClick={handleAction}
-                  >
-                      ✕
-                  </button>
+                      onAction={handleButtonAction}
+                      label="✕"
+                  />
               </>
           ) : (
               <>
-                  <button
-                      id="openEditMode"
+                  <ActionButton
+                      imageId={id}
+                      action="openEditMode"
                       disabled={disabled}
-                      className="char-button image-item-remove-button"
                       title={t('menu_action_title_rename')}
-                      onClick={handleAction}
-                  >
-                      ✎
-                  </button>
-                  <button
-                      id="removeImage"
+                      onAction={handleButtonAction}
+                      label="✎"
+                  />
+                  <ActionButton
+                      imageId={id}
+                      action="removeImage"
                       disabled={disabled}
-                      className="char-button image-item-remove-button"
                       title={t('menu_action_title_remove')}
-                      onClick={handleAction}
-                  >
-                      {t('menu_action_label_remove')}
-                  </button>
+                      onAction={handleButtonAction}
+                      label="✕"
+                  />
               </>
           )}
       </div>

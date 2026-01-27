@@ -61,7 +61,7 @@ const ActionMenu: FC<ActionMenuProps> = ({
             images={images}
             disabled={disabled}
             onImageAction={onImageAction}
-            currentImageId={currentImage ? currentImage.id : ''}
+            currentImageId={currentImage?.id}
         />
         {currentImage && (
             <ImageDetails

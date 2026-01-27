@@ -12,13 +12,13 @@ const ACTIONS: ReducerAction[] = ['addImages'];
 
 type ImageListProps = {
     t: TFunction;
-    currentImageId: string;
+    currentImageId?: string;
     images: ImageConfig[];
     disabled: boolean;
     onImageAction: ImageActionCallback;
 };
 
-const ImageList: FC<ImageListProps> = ({ t, images, disabled, onImageAction, currentImageId }) => (
+const ImageList: FC<ImageListProps> = ({ t, images, disabled, onImageAction, currentImageId = '' }) => (
     <MenuSection
         t={t}
         titleKey="menu_section_label_image_list"

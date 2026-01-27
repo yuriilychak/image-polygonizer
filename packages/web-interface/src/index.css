@@ -21,9 +21,8 @@ body {
   cursor: pointer;
   font-weight: 700;
   font-size: 14px;
-  padding: 2px;
-  width: 18px;
-  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   border-radius: 50%;
   background-color: #6e6f73;
   color: #ffffff;

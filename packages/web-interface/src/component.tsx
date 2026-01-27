@@ -38,7 +38,7 @@ const App: FC = () => {
                 onImageUpload={onImageUpload}
                 imageLoaderRef={imageLoaderRef}
             />
-            <WorkingArea src={currentImage?.src || null} />
+            <WorkingArea src={currentImage?.src} />
         </div>
     );
 };
