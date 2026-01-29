@@ -1,60 +1,33 @@
-import { DEFAULT_CONFIG } from './constants';
-import { getDefaultConcurrency } from './helpers';
+import Parallel from './parallel';
 
-import type { ImageConfig, ImagePolygonizerInstance } from './types';
+import type { ImageConfig, ImagePolygonizerInstance, ThreadInput } from './types';
 export default class ImagePolygonizer implements ImagePolygonizerInstance {
+    #parallel: Parallel;
+
     constructor() {
-        // Initialization code here
+        this.#parallel = new Parallel();
     }
 
     async importImages(files: FileList): Promise<ImageConfig[]> {
-        const imageFiles: File[] = [];
+        const threadInput: ThreadInput<'addImages'>[] = [];
+        let data: File;
 
         for (let i = 0; i < files.length; ++i) {
-            const f = files[i];
-            if (f.type.startsWith('image/')) imageFiles.push(f);
-        }
+            data = files[i];
 
-        if (imageFiles.length === 0) {
-            return [];
-        }
-
-        const concurrency = getDefaultConcurrency(imageFiles.length);
-
-        const result: ImageConfig[] = [];
-        let next = 0;
-
-        async function worker(): Promise<void> {
-            while (true) {
-                const current = next++;
-
-                if (current >= imageFiles.length) {
-                    return;
-                }
-
-                const file = imageFiles[current];
-
-                try {
-                    const bitmap = await createImageBitmap(file);
-                    result.push({
-                        label: file.name.replace(/\.[^/.]+$/, ''),
-                        type: file.type.replace('image/', ''),
-                        src: bitmap,
-                        selected: false,
-                        outdated: false,
-                        hasPolygons: false,
-                        id: crypto.randomUUID(),
-                        config: { ...DEFAULT_CONFIG },
-                    });
-                } catch (error) {
-                    console.error('Error processing file:', file.name, error);
-                }
+            if (data.type.startsWith('image/')) {
+                threadInput.push({ type: 'addImages', data });
             }
         }
 
-        await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-        return result;
+        return threadInput.length !== 0 ? new Promise((resolve, reject) => {
+            this.#parallel.start(threadInput, (threadOutput: ImageConfig[]) => {
+                resolve(threadOutput);
+            }, (err) => {
+                console.error('Error importing images:', err);
+                reject(err);
+            });
+        }) : Promise.resolve([]);
     }
 
     async polygonize(polygonizeImages: ImageConfig[]): Promise<void> {

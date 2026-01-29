@@ -5,3 +5,5 @@ export const DEFAULT_CONFIG: ImageSetting = {
     alphaThreshold: 0,
     minimalDistance: 8,
 };
+
+export const NOOP = (): void => {};

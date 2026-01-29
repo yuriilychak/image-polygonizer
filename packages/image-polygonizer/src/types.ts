@@ -2,6 +2,13 @@ export type ImageConfigKey = 'maxPointCount' | 'alphaThreshold' | 'minimalDistan
 
 export type ImageSetting = Record<ImageConfigKey, number>;
 
+export type ThreadType =
+    | 'projectImport'
+    | 'projectExport'
+    | 'projectSave'
+    | 'polygonize'
+    | 'addImages';
+
 export interface ImageMetadata {
     label: string;
     type: string;
@@ -17,6 +24,29 @@ export interface ImageConfig extends ImageMetadata {
 }
 
 export interface ImagePolygonizerInstance {
-    importImages(files: FileList): Promise<ImageConfig[]>
-    polygonize(polygonizeImages: ImageConfig[]): Promise<void>
+    importImages(files: FileList): Promise<ImageConfig[]>;
+    polygonize(polygonizeImages: ImageConfig[]): Promise<void>;
 }
+
+type ThreadInputDataByType = {
+    projectImport: { files: File[] };
+    projectExport: { projectId: string; format: 'zip' | 'json' };
+    projectSave: { projectId: string; snapshot: ArrayBuffer };
+    polygonize: { imageId: string; maxVertices: number };
+    addImages: File;
+};
+
+type ThreadOutputDataByType = {
+    projectImport: { files: File[] };
+    projectExport: { projectId: string; format: 'zip' | 'json' };
+    projectSave: { projectId: string; snapshot: ArrayBuffer };
+    polygonize: { imageId: string; maxVertices: number };
+    addImages: ImageConfig;
+};
+
+export type ThreadInput<T extends ThreadType = ThreadType> = {
+    type: T;
+    data: ThreadInputDataByType[T];
+};
+
+export type ThreadOutput<T extends ThreadType = ThreadType> = ThreadOutputDataByType[T];
