@@ -4,6 +4,8 @@ import { ID_TO_CHAR } from '../constants';
 import type { MouseEventHandler } from 'react';
 import type { TFunction } from 'i18next';
 
+import './component.css';
+
 type ActionButtonProps<T extends string> = {
     t: TFunction;
     imageId?: string;

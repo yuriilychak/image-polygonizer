@@ -1,8 +1,6 @@
-import { ImagePolygonizer } from "image-polygonizer";
+import type { ImageConfig, ImageConfigKey, ImagePolygonizerInstance } from 'image-polygonizer';
 
 export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
-
-export type ImageConfigKey = 'maxPointCount' | 'alphaThreshold' | 'minimalDistance';
 
 export type ReducerAction =
   | 'init'
@@ -23,23 +21,6 @@ export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
 export type SupportedImageFormats = 'png' | 'webp';
 
-export type CharAction = ReducerAction;
-
-export type ImageSetting = Record<ImageConfigKey, number>;
-
-export interface ImageMetadata {
-  label: string;
-  type: string;
-  src: ImageBitmap;
-}
-export interface ImageConfig extends ImageMetadata {
-  id: string;
-  selected: boolean;
-  hasPolygons: boolean;
-  outdated: boolean;
-  config: ImageSetting;
-}
-
 export type ButtonActionCallback = (action: ButtonAction) => void;
 
 export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
@@ -52,7 +33,7 @@ export type ReducerState = {
   currentAction: ButtonAction;
   currentImage: ImageConfig | null;
   currentLanguage: LanguageKey;
-  imagePolygonizer: ImagePolygonizer;
+  imagePolygonizer: ImagePolygonizerInstance;
   images: ImageConfig[];
   disabled: boolean;
   buttonActions: ButtonAction[];

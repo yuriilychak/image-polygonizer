@@ -1,14 +1,16 @@
-import { memo, useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { memo, useMemo } from 'react';
 import { NOOP } from '../../../constants';
 import { ActionButton, WarningIcon } from '../../shared';
+import useImageItem from './hooks';
 
-import type { FC, MouseEventHandler, ChangeEventHandler } from 'react';
-import type { ImageActionCallback, ReducerAction } from '../../../types';
+import type { FC } from 'react';
+import type { TFunction } from 'i18next';
+import type { ImageActionCallback } from '../../../types';
 
 import './component.css';
 
 type ImageItemProps = {
+    t: TFunction;
     id: string;
     label: string;
     type: string;
@@ -21,6 +23,7 @@ type ImageItemProps = {
 };
 
 const ImageItem: FC<ImageItemProps> = ({
+    t,
     id,
     label,
     type,
@@ -31,27 +34,16 @@ const ImageItem: FC<ImageItemProps> = ({
     isCurrent,
     onAction,
 }) => {
-    const [localName, setLocalName] = useState('');
-    const nameRef = useRef<string>(localName);
-    const [renameMode, setRenameMode] = useState(false);
-    const { t } = useTranslation();
-    const actions = useMemo(
-        () => (renameMode ? ['renameImage', 'closeEditMode'] : ['openEditMode', 'removeImage']),
-        [renameMode]
-    );
-    const warnings = useMemo(() => {
-        const result: string[] = [];
-        if (outdated) {
-            result.push('polygonsOutdated');
-        }
-        if (!hasPolygons) {
-            result.push('polygonsMissing');
-        }
-        return result;
-    }, [outdated, hasPolygons]);
-
-    const isLocalNameInvalid = localName.trim() === '' || localName === label;
-
+    const {
+        localName,
+        renameMode,
+        actions,
+        warnings,
+        isLocalNameInvalid,
+        handleButtonAction,
+        handleAction,
+        handleLocalNameChange,
+    } = useImageItem(outdated, hasPolygons, label, disabled, id, onAction);
     const rootStyles = useMemo(() => {
         const result = ['image-item-root'];
 
@@ -65,43 +57,6 @@ const ImageItem: FC<ImageItemProps> = ({
 
         return result.join(' ');
     }, [isCurrent, disabled]);
-
-    useEffect(() => {
-        setLocalName(label);
-        setRenameMode(false);
-    }, [label, disabled]);
-
-    useEffect(() => {
-        setLocalName(label);
-    }, [label, renameMode]);
-
-    const handleButtonAction = useCallback(
-        (action: string, imageId: string) => {
-            switch (action) {
-                case 'openEditMode':
-                    setRenameMode(true);
-                    break;
-                case 'closeEditMode':
-                    setRenameMode(false);
-                    break;
-                case 'renameImage':
-                    onAction(action as ReducerAction, imageId, nameRef.current);
-                    setRenameMode(false);
-                    break;
-                default:
-                    onAction(action as ReducerAction, imageId);
-            }
-        },
-        [onAction]
-    );
-
-    const handleAction: MouseEventHandler<HTMLElement> = e => {
-        e.stopPropagation();
-        onAction(e.currentTarget.id as ReducerAction, id, localName);
-    };
-
-    const handleLocalNameChange: ChangeEventHandler<HTMLInputElement> = ({ target }) =>
-        setLocalName(target.value);
 
     return (
         <div className={rootStyles} onClick={handleAction} id="setCurrentImage">

@@ -4,7 +4,8 @@ import { MenuSection } from '../shared';
 
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
-import type { ReducerAction, ImageActionCallback, ImageConfig } from '../../types';
+import type { ImageConfig } from 'image-polygonizer';
+import type { ReducerAction, ImageActionCallback } from '../../types';
 
 import './component.css';
 
@@ -36,6 +37,7 @@ const ImageList: FC<ImageListProps> = ({
     >
         {images.map(({ id, label, selected, outdated, hasPolygons, type }) => (
             <ImageItem
+                t={t}
                 type={type}
                 key={id}
                 id={id}

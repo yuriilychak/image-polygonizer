@@ -1,14 +1,13 @@
 import { ImagePolygonizer } from 'image-polygonizer';
-import { getButtonActions, imageMetadataToConfig } from './helpers';
+import { getButtonActions } from './helpers';
 import { LANGUAGE_LIST } from './constants';
 
+import type { ImageConfig } from 'image-polygonizer';
 import type {
   ReducerAction,
   ReducerEvent,
   ReducerMiddleware,
   ReducerState,
-  ImageMetadata,
-  ImageConfig,
   SettingChangePayload,
   ImageActionPayload,
   ButtonAction,
@@ -16,10 +15,7 @@ import type {
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
   init: state => ({ ...state, isInit: true }),
-  addImages: (state, payload: ImageMetadata[]) => {
-    const newImages: ImageConfig[] = payload.map((metadata: ImageMetadata) =>
-      imageMetadataToConfig(metadata)
-    );
+  addImages: (state, newImages: ImageConfig[]) => {
     const images = state.images.concat(newImages);
     const buttonActions = getButtonActions(images);
     const currentImage = state.currentImage || newImages[0];

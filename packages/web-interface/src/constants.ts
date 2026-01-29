@@ -1,10 +1,4 @@
-import type { ImageSetting, LanguageKey, SupportedImageFormats } from './types';
-
-export const DEFAULT_CONFIG: ImageSetting = {
-    maxPointCount: 32,
-    alphaThreshold: 0,
-    minimalDistance: 8,
-};
+import type { LanguageKey, SupportedImageFormats } from './types';
 
 export const LANGUAGE_LIST: LanguageKey[] = ['en', 'de', 'es', 'fr', 'pl', 'ru', 'ua'];
 

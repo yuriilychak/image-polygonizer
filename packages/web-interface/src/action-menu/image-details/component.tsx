@@ -1,11 +1,12 @@
 import { memo } from 'react';
 import { MenuSection } from '../shared';
 import { RangeInput } from './range-input';
-import { IMAGE_SETTING_RANGES, SETTING_ORDER } from './constants';
+import { IMAGE_SETTING_RANGES } from './constants';
 
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
-import type { ImageSetting, SettingChangeCallback } from '../../types';
+import type { ImageSetting } from 'image-polygonizer';
+import type { SettingChangeCallback } from '../../types';
 
 import './component.css';
 
@@ -22,13 +23,12 @@ const ImageDetails: FC<ImageDetailsProps> = ({ t, disabled, onSettingChange, ima
         titleKey="menu_section_label_image_details"
         contentClassName="image-details-content"
     >
-        {SETTING_ORDER.map(key => (
+        {IMAGE_SETTING_RANGES.map(rangeSetting => (
             <RangeInput
-                {...IMAGE_SETTING_RANGES[key]}
-                key={key}
-                id={key}
+                {...rangeSetting}
+                key={rangeSetting.id}
                 t={t}
-                value={imageConfig[key]}
+                value={imageConfig[rangeSetting.id]}
                 disabled={disabled}
                 onChange={onSettingChange}
             />

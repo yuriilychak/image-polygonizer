@@ -3,7 +3,8 @@ import { RANGE_INPUT_STEP } from '../constants';
 
 import type { FC, ChangeEventHandler } from 'react';
 import type { TFunction } from 'i18next';
-import type { ImageConfigKey, SettingChangeCallback } from '../../../types';
+import type { ImageConfigKey } from 'image-polygonizer';
+import type { SettingChangeCallback } from '../../../types';
 
 import './component.css';
 

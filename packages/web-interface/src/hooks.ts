@@ -1,9 +1,9 @@
 import { useRef, useReducer, useEffect, useCallback, ChangeEventHandler, MouseEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INITIAL_STATE, REDUCER } from './reducer';
-import { filesToImageMetadataList } from './helpers';
 
-import type { ButtonActionCallback, ImageActionCallback, ImageMetadata, SettingChangeCallback } from './types';
+import type { ImageConfig } from 'image-polygonizer';
+import type { ButtonActionCallback, ImageActionCallback, SettingChangeCallback } from './types';
 
 export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
@@ -64,14 +64,14 @@ export default function usePolygonizer() {
                 return;
             }
     
-            const result: ImageMetadata[] = await filesToImageMetadataList(files);
+            const result: ImageConfig[] = await imagePolygonizer.importImages(files);
     
             if (result.length > 0) {
                 dispatch({ type: 'addImages', payload: result });
             }
     
             target.value = '';
-        }, []);
+        }, [imagePolygonizer]);
 
         const onSwitchLanguage: MouseEventHandler = useCallback(() => dispatch({ type: 'switchLanguage' }), []);
     
@@ -82,6 +82,7 @@ export default function usePolygonizer() {
     
             switch (currentAction) {
                 case 'generate':
+                    imagePolygonizer.polygonize(images.filter(img => img.selected));
                     break;
                 case 'import':
                     break;
@@ -91,7 +92,7 @@ export default function usePolygonizer() {
                     break;
                 default:  
             }
-        }, [isInit, currentAction, imagePolygonizer]);
+        }, [isInit, currentAction, imagePolygonizer, images]);
     
         useEffect(() => {
             dispatch({ type: 'init' });

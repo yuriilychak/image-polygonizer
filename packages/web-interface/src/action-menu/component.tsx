@@ -5,11 +5,11 @@ import { IMAGE_INPUT_ACCEPT } from '../constants';
 
 import type { FC, ChangeEventHandler, MouseEventHandler, RefObject } from 'react';
 import type { TFunction } from 'i18next';
+import type { ImageConfig } from 'image-polygonizer';
 import type {
     ButtonAction,
     ButtonActionCallback,
     ImageActionCallback,
-    ImageConfig,
     LanguageKey,
     SettingChangeCallback,
 } from '../types';

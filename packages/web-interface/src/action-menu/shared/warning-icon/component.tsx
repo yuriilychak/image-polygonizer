@@ -4,6 +4,7 @@ import { ID_TO_CHAR } from '../constants';
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
 
+import './component.css';
 
 type WarningIconProps = {
     t: TFunction
