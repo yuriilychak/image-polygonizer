@@ -1,9 +1,15 @@
+import { DEFAULT_CONFIG } from './constants';
+
+import type { ImageConfig } from './types';
+
 export function imageBitmapToAlphaMask(imageBitmap: ImageBitmap, threshold: number): Uint8Array {
     const { width, height } = imageBitmap;
     const pixelCount = width * height;
     const byteCount = (pixelCount + 7) >> 3;
     const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext("2d", { willReadFrequently: true }) as OffscreenCanvasRenderingContext2D;
+    const ctx = canvas.getContext('2d', {
+        willReadFrequently: true,
+    }) as OffscreenCanvasRenderingContext2D;
 
     ctx.drawImage(imageBitmap, 0, 0);
 
@@ -20,17 +26,13 @@ export function imageBitmapToAlphaMask(imageBitmap: ImageBitmap, threshold: numb
     return result;
 }
 
-export function getDefaultConcurrency(
-    max: number,
-    min = 1,
-    defaultValue = 8,
-    reserveForMainThread = 1,
-): number {
-    let c = (navigator.hardwareConcurrency ?? defaultValue) - reserveForMainThread;
-
-    // clamp via branches (fast, avoids ToInt32 coercion)
-    if (c < min) c = min;
-    else if (c > max) c = max;
-
-    return c >>> 0;
-}
+export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
+    label: file.name.replace(/\.[^/.]+$/, ''),
+    type: file.type.replace('image/', ''),
+    src: await createImageBitmap(file),
+    selected: false,
+    outdated: false,
+    hasPolygons: false,
+    id: crypto.randomUUID(),
+    config: { ...DEFAULT_CONFIG },
+});

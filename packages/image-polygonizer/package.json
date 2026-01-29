@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "mkdir -p ../web-interface/public/dist && rollup -c",
     "dev": "rollup -c -w",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "docs": "typedoc",

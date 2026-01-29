@@ -23,16 +23,18 @@ export interface ImageConfig extends ImageMetadata {
     config: ImageSetting;
 }
 
+export type PolygonizeOutput = { id: string, data: { alphaMask: Uint8Array } };
+
 export interface ImagePolygonizerInstance {
     importImages(files: FileList): Promise<ImageConfig[]>;
-    polygonize(polygonizeImages: ImageConfig[]): Promise<void>;
+    polygonize(polygonizeImages: ImageConfig[]): Promise<PolygonizeOutput[]>;
 }
 
 type ThreadInputDataByType = {
     projectImport: { files: File[] };
     projectExport: { projectId: string; format: 'zip' | 'json' };
     projectSave: { projectId: string; snapshot: ArrayBuffer };
-    polygonize: { imageId: string; maxVertices: number };
+    polygonize: ImageConfig;
     addImages: File;
 };
 
@@ -40,7 +42,7 @@ type ThreadOutputDataByType = {
     projectImport: { files: File[] };
     projectExport: { projectId: string; format: 'zip' | 'json' };
     projectSave: { projectId: string; snapshot: ArrayBuffer };
-    polygonize: { imageId: string; maxVertices: number };
+    polygonize: PolygonizeOutput;
     addImages: ImageConfig;
 };
 
