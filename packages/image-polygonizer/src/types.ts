@@ -49,6 +49,7 @@ type ThreadOutputDataByType = {
 export type ThreadInput<T extends ThreadType = ThreadType> = {
     type: T;
     data: ThreadInputDataByType[T];
+    transfetrable?: Transferable[];
 };
 
 export type ThreadOutput<T extends ThreadType = ThreadType> = ThreadOutputDataByType[T];

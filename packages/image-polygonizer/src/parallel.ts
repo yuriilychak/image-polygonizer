@@ -123,11 +123,11 @@ export default class Parallel {
 
         this.#onSpawn(this.#startedThreads, this.#startedThreads / this.#totalThreads);
 
-        const input = this.#input[threadIndex];
+        const { transfetrable = [], ...input } = this.#input[threadIndex];
 
         thread.onmessage = this.#onMessage;
         thread.onerror = this.#handleError;
-        thread.postMessage(input);
+        thread.postMessage(input, transfetrable);
 
         return true;
     }

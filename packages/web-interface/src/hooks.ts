@@ -63,8 +63,11 @@ export default function usePolygonizer() {
             dispatch({ type: 'setEnabled' });
             return;
         }
-
+        
+        const startTime = performance.now();
         const result: ImageConfig[] = await imagePolygonizer.importImages(files);
+        const endTime = performance.now();
+        console.log(`Imported ${files.length} images in ${(endTime - startTime).toFixed(2)} ms`);
 
         if (result.length > 0) {
             dispatch({ type: 'addImages', payload: result });
