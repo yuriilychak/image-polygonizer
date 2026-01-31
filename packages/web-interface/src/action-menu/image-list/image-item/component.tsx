@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { NOOP } from '../../../constants';
+import { NOOP } from 'image-polygonizer';
 import { ActionButton, WarningIcon } from '../../shared';
 import useImageItem from './hooks';
 

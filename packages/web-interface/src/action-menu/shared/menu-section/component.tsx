@@ -1,6 +1,6 @@
 import { memo } from 'react';
+import { NOOP } from 'image-polygonizer';
 import { ActionButton } from '../action-button';
-import { NOOP } from '../../../constants';
 
 import type { FC, ReactNode } from 'react';
 import type { TFunction } from 'i18next';

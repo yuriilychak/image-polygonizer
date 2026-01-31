@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG } from './constants';
+import { DEFAULT_CONFIG, DEFAULT_POLYGON_INFO } from './constants';
 
 import type { ImageConfig } from './types';
 
@@ -7,44 +7,66 @@ export function packAlphaMaskBits(
     width: number,
     height: number,
     threshold: number,
+    padding = 0,
 ): Uint8Array {
-    const pixelCount = width * height;
+    const srcPixelCount = width * height;
 
-    if (pixels.length < pixelCount * 4) {
-        throw new Error(`pixels length (${pixels.length}) < width*height*4 (${pixelCount * 4})`);
+    if (pixels.length < srcPixelCount * 4) {
+        throw new Error(
+            `pixels length (${pixels.length}) < width*height*4 (${srcPixelCount * 4})`
+        );
     }
 
-    // 1 біт на піксель
-    const out = new Uint8Array((pixelCount + 7) >>> 3);
+    // padded dims
+    const pw = width + (padding << 1);
+    const ph = height + (padding << 1);
+    const dstPixelCount = pw * ph;
 
-    // clamp threshold to 0..255 just in case
-    threshold = threshold < 0 ? 0 : threshold > 255 ? 255 : threshold;
+    // 1 біт на піксель у padded зображенні
+    const out = new Uint8Array((dstPixelCount + 7) >>> 3);
 
-    let outIndex = 0;
-    let byte = 0;
-    let bit = 0;
+    // padding=0 -> старий швидкий шлях без зайвих умов
+    if (padding === 0) {
+        let outIndex = 0;
+        let byte = 0;
+        let bit = 0;
 
-    // альфа починається з індексу 3 і йде кроком 4
-    for (let a = 3, p = 0; p < pixelCount; ++p, a += 4) {
-        // 1 якщо alpha >= threshold, інакше 0
-        const filled = pixels[a] >= threshold ? 1 : 0;
+        for (let a = 3, p = 0; p < srcPixelCount; ++p, a += 4) {
+            const filled = pixels[a] >= threshold ? 1 : 0;
+            byte |= filled << bit;
 
-        byte |= filled << bit;
-
-        if (++bit === 8) {
-            out[outIndex++] = byte;
-            byte = 0;
-            bit = 0;
+            if (++bit === 8) {
+                out[outIndex++] = byte;
+                byte = 0;
+                bit = 0;
+            }
         }
+
+        if (bit !== 0) out[outIndex] = byte;
+        return out;
     }
 
-    // якщо лишились біти, докидаємо останній байт
-    if (bit !== 0) {
-        out[outIndex] = byte;
+    // ---- padded packing ----
+    // Ми пишемо тільки "внутрішній" прямокутник (padding..padding+width-1, padding..padding+height-1),
+    // а бордер лишається 0 (out вже ініціалізований нулями).
+
+    for (let y = 0; y < height; y++) {
+        // рядок у padded сітці
+        const dstRowBase = (y + padding) * pw + padding;
+        // рядок у src (RGBA)
+        let a = (y * width * 4) + 3;
+
+        for (let x = 0; x < width; x++, a += 4) {
+            if (pixels[a] >= threshold) {
+                const dstIndex = dstRowBase + x;      // 0..dstPixelCount-1
+                out[dstIndex >>> 3] |= 1 << (dstIndex & 7); // LSB-first
+            }
+        }
     }
 
     return out;
 }
+
 
 export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     label: file.name.replace(/\.[^/.]+$/, ''),
@@ -55,6 +77,7 @@ export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     hasPolygons: false,
     id: crypto.randomUUID(),
     config: { ...DEFAULT_CONFIG },
+    polygonInfo: { ...DEFAULT_POLYGON_INFO},
 });
 
 

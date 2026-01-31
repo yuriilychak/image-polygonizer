@@ -1,15 +1,27 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { createBackgroundPatern } from './helpers';
+import { DEFAULT_POLYGON_INFO } from 'image-polygonizer';
+import {
+    createBackgroundPatern,
+    drawContoursOverlay,
+    drawTransparentPixelsOverlay,
+    drawPolygonsDebug,
+} from './helpers';
+import { DRAW_ITEMS_TO_CHAR } from './constants';
 
-import type { FC } from 'react';
+import type { FC, MouseEventHandler } from 'react';
+import type { PolygonInfo } from 'image-polygonizer';
+import type { DrawItem } from '../types';
 
 import './component.css';
 
 type WorkingAreaProps = {
     src?: ImageBitmap | null;
+    polygonInfo?: PolygonInfo;
 };
 
-const WorkingArea: FC<WorkingAreaProps> = ({ src = null }) => {
+const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_POLYGON_INFO }) => {
+    const [availableActions, setAvailableActions] = useState<DrawItem[]>([]);
+    const [activeActions, setActiveActions] = useState<DrawItem[]>([]);
     const rootRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -22,6 +34,33 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null }) => {
             setCanvasSize({ width: clientWidth, height: clientHeight });
         }
     }, []);
+
+    const onAction: MouseEventHandler<HTMLButtonElement> = e => {
+        const item = e.currentTarget.id as DrawItem;
+        setActiveActions(preveActiveActions =>
+            preveActiveActions.includes(item)
+                ? preveActiveActions.filter(a => a !== item)
+                : [...preveActiveActions, item]
+        );
+    };
+
+    useEffect(() => {
+        const nextActions: DrawItem[] = [];
+        if (polygonInfo.alphaMask.length > 0) {
+            nextActions.push('alpha');
+        }
+
+        if (polygonInfo.contours.length > 0) {
+            nextActions.push('contour');
+        }
+
+        if (polygonInfo.polygons.length > 0) {
+            nextActions.push('polygon');
+        }
+
+        setAvailableActions(nextActions);
+        setActiveActions([]);
+    }, [polygonInfo]);
 
     useEffect(() => {
         if (canvasRef.current && !context) {
@@ -68,12 +107,64 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null }) => {
                 scaledWidth,
                 scaledHeight
             );
+
+            if (activeActions.includes('alpha') && polygonInfo.alphaMask.length > 0) {
+                drawTransparentPixelsOverlay(
+                    context,
+                    polygonInfo.alphaMask,
+                    src.width + 4,
+                    src.height + 4,
+                    {
+                        offsetX: (canvasSize.width - scaledWidth) / 2,
+                        offsetY: (canvasSize.height - scaledHeight) / 2,
+                        scale,
+                        padding: 2,
+                        colorRGBA: [255, 0, 0, 120],
+                    }
+                );
+            }
+
+            if (activeActions.includes('contour') && polygonInfo.contours.length > 0) {
+                drawContoursOverlay(context, polygonInfo.contours, {
+                    offsetX: (canvasSize.width - scaledWidth) / 2,
+                    offsetY: (canvasSize.height - scaledHeight) / 2,
+                    scale,
+                    lineWidth: 2,
+                    color: 'rgba(0, 255, 0, 1)',
+                    fillAlpha: 0.5,
+                });
+            }
+
+            if (activeActions.includes('polygon') && polygonInfo.polygons.length > 0) {
+                drawPolygonsDebug(context, polygonInfo.polygons, {
+                    offsetX: (canvasSize.width - scaledWidth) / 2,
+                    offsetY: (canvasSize.height - scaledHeight) / 2,
+                    scale,
+                    lineWidth: 2,
+                    color: 'rgba(0, 0, 255, 1)',
+                    fillAlpha: 0.35,
+                });
+            }
         }
-    }, [canvasSize, pattern, context, src]);
+    }, [canvasSize, pattern, context, src, activeActions, polygonInfo]);
 
     return (
         <div className="working-area" ref={rootRef}>
             <canvas ref={canvasRef} {...canvasSize} className="working-canvas" />
+            {availableActions.length > 0 && (
+                <div className="working-area-actions">
+                    {availableActions.map(item => (
+                        <button
+                            key={item}
+                            className={`working-area-button ${activeActions.includes(item) ? 'working-area-button-active' : ''}`}
+                            id={item}
+                            onClick={onAction}
+                        >
+                            {DRAW_ITEMS_TO_CHAR[item]}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

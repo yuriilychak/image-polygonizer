@@ -15,19 +15,22 @@ export interface ImageMetadata {
     src: ImageBitmap;
 }
 
+export type PolygonInfo = { alphaMask: Uint8Array, contours: Uint16Array[], polygons: Uint16Array[], config: ImageSetting };
+
 export interface ImageConfig extends ImageMetadata {
     id: string;
     selected: boolean;
     hasPolygons: boolean;
     outdated: boolean;
     config: ImageSetting;
+    polygonInfo: PolygonInfo;
 }
 
-export type PolygonizeOutput = { id: string, data: { alphaMask: Uint8Array } };
+export type ImageActionPayload<T = any> = { id: string; data?: T };
 
 export interface ImagePolygonizerInstance {
     importImages(files: FileList): Promise<ImageConfig[]>;
-    polygonize(polygonizeImages: ImageConfig[]): Promise<PolygonizeOutput[]>;
+    polygonize(polygonizeImages: ImageConfig[]): Promise<ImageActionPayload<PolygonInfo>[]>;
 }
 
 type ThreadInputDataByType = {
@@ -42,7 +45,7 @@ type ThreadOutputDataByType = {
     projectImport: { files: File[] };
     projectExport: { projectId: string; format: 'zip' | 'json' };
     projectSave: { projectId: string; snapshot: ArrayBuffer };
-    polygonize: PolygonizeOutput;
+    polygonize: ImageActionPayload<PolygonInfo>;
     addImages: ImageConfig;
 };
 

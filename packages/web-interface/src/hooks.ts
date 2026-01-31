@@ -85,9 +85,9 @@ export default function usePolygonizer() {
 
         switch (currentAction) {
             case 'generate':
-                imagePolygonizer.polygonize(images.filter(img => img.selected)).then((outputs) => {
-                    console.log('OUT', outputs);
-                });
+                imagePolygonizer
+                .polygonize(images.filter(img => img.selected))
+                .then((outputs) => dispatch({ type: 'updatePolygonInfo', payload: outputs }));
                 break;
             case 'import':
                 break;

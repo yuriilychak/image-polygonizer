@@ -2,6 +2,8 @@ import type { ImageConfig, ImageConfigKey, ImagePolygonizerInstance } from 'imag
 
 export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
 
+export type DrawItem = 'alpha' | 'contour' | 'polygon' | 'triangles';
+
 export type ReducerAction =
   | 'init'
   | 'addImages'
@@ -15,9 +17,10 @@ export type ReducerAction =
   | 'renameImage'
   | 'setAction'
   | 'resetAction'
-  | 'switchLanguage';
+  | 'switchLanguage'
+  | 'updatePolygonInfo';
 
-export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua'; 
+export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
 export type SupportedImageFormats = 'png' | 'webp';
 
@@ -45,5 +48,3 @@ export type ReducerMiddleware = (state: ReducerState, payload?: any) => ReducerS
 export type ReducerEvent = { type: ReducerAction; payload?: any };
 
 export type SettingChangePayload = { id: string; value: number };
-
-export type ImageActionPayload<T = any> = { id: string; data?: T };
