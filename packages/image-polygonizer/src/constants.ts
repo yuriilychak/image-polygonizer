@@ -10,6 +10,7 @@ export const DEFAULT_POLYGON_INFO: PolygonInfo = {
     alphaMask: new Uint8Array(),
     contours: [],
     polygons: [],
+    triangles: [],
     config: { ...DEFAULT_CONFIG },
     offset: 0,
     outline: 0,

@@ -1,3 +1,5 @@
+import { getX, getY, segmentsIntersect } from './helpers';
+
 export function simplifyClosedPixelContourRDPNoSelfIntersections(
     contour: Uint16Array,
     epsilon: number,
@@ -81,14 +83,6 @@ export function simplifyClosedPixelContourRDPNoSelfIntersections(
 /* =========================================================
  * Basic utilities
  * ========================================================= */
-
-function getX(contour: Uint16Array, pointIndex: number): number {
-    return contour[pointIndex << 1];
-}
-
-function getY(contour: Uint16Array, pointIndex: number): number {
-    return contour[(pointIndex << 1) + 1];
-}
 
 function findAnchorIndex(contour: Uint16Array, pointCount: number): number {
     let anchor = 0;
@@ -215,65 +209,6 @@ function pointLineDistanceSqByIndex(
 
     const cross = abx * (py - ay) - aby * (px - ax);
     return (cross * cross) / lenSq;
-}
-
-function orient(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    cx: number,
-    cy: number,
-): number {
-    const v = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-
-    if (v > 0) return 1;
-    if (v < 0) return -1;
-    return 0;
-}
-
-function onSegment(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    px: number,
-    py: number,
-): boolean {
-    return (
-        px >= Math.min(ax, bx) &&
-        px <= Math.max(ax, bx) &&
-        py >= Math.min(ay, by) &&
-        py <= Math.max(ay, by) &&
-        orient(ax, ay, bx, by, px, py) === 0
-    );
-}
-
-function segmentsIntersect(
-    a0x: number,
-    a0y: number,
-    a1x: number,
-    a1y: number,
-    b0x: number,
-    b0y: number,
-    b1x: number,
-    b1y: number,
-): boolean {
-    const o1 = orient(a0x, a0y, a1x, a1y, b0x, b0y);
-    const o2 = orient(a0x, a0y, a1x, a1y, b1x, b1y);
-    const o3 = orient(b0x, b0y, b1x, b1y, a0x, a0y);
-    const o4 = orient(b0x, b0y, b1x, b1y, a1x, a1y);
-
-    if (o1 !== o2 && o3 !== o4) {
-        return true;
-    }
-
-    if (o1 === 0 && onSegment(a0x, a0y, a1x, a1y, b0x, b0y)) return true;
-    if (o2 === 0 && onSegment(a0x, a0y, a1x, a1y, b1x, b1y)) return true;
-    if (o3 === 0 && onSegment(b0x, b0y, b1x, b1y, a0x, a0y)) return true;
-    if (o4 === 0 && onSegment(b0x, b0y, b1x, b1y, a1x, a1y)) return true;
-
-    return false;
 }
 
 function isSamePointByIndex(

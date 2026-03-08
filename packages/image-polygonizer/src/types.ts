@@ -19,6 +19,7 @@ export type PolygonInfo = {
     alphaMask: Uint8Array, 
     contours: Uint16Array[], 
     polygons: Uint16Array[], 
+    triangles: Uint16Array[],
     config: ImageSetting, 
     offset: number;
     outline: number;

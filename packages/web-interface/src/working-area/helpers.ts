@@ -281,3 +281,48 @@ export function drawPolygonsDebug(
 }
 
 
+export function drawTriangulation(
+  ctx: CanvasRenderingContext2D,
+  polygon: Uint16Array,
+  indices: Uint16Array,
+  color: string,
+  offsetX: number,
+  offsetY: number,
+  scale: number,
+): void {
+  const previousAlpha = ctx.globalAlpha;
+  const previousStrokeStyle = ctx.strokeStyle;
+  const previousFillStyle = ctx.fillStyle;
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+
+  for (let i = 0; i < indices.length; i += 3) {
+    const i0 = indices[i] << 1;
+    const i1 = indices[i + 1] << 1;
+    const i2 = indices[i + 2] << 1;
+
+    const x0 = polygon[i0] * scale + offsetX;
+    const y0 = polygon[i0 + 1] * scale + offsetY;
+    const x1 = polygon[i1] * scale + offsetX;
+    const y1 = polygon[i1 + 1] * scale + offsetY;
+    const x2 = polygon[i2] * scale + offsetX;
+    const y2 = polygon[i2 + 1] * scale + offsetY;
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.closePath();
+
+    ctx.globalAlpha = 0.2;
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = previousAlpha;
+  ctx.strokeStyle = previousStrokeStyle;
+  ctx.fillStyle = previousFillStyle;
+}

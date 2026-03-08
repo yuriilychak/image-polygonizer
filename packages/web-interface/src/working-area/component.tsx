@@ -5,6 +5,7 @@ import {
     drawContoursOverlay,
     drawTransparentPixelsOverlay,
     drawPolygonsDebug,
+    drawTriangulation,
 } from './helpers';
 import { DRAW_ITEMS_TO_CHAR } from './constants';
 
@@ -56,6 +57,10 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
 
         if (polygonInfo.polygons.length > 0) {
             nextActions.push('polygon');
+        }
+
+        if (polygonInfo.triangles.length > 0) {
+            nextActions.push('triangles');
         }
 
         setAvailableActions(nextActions);
@@ -145,6 +150,20 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                     color: 'rgba(0, 0, 255, 1)',
                     fillAlpha: 0.35,
                 });
+            }
+
+            if (activeActions.includes('triangles') && polygonInfo.triangles.length > 0) {
+                polygonInfo.triangles.forEach((triangle, index) =>
+                    drawTriangulation(
+                        context,
+                        polygonInfo.polygons[index],
+                        triangle,
+                        'rgba(255, 0, 255, 1)',
+                        (canvasSize.width - scaledWidth) / 2 - padding,
+                        (canvasSize.height - scaledHeight) / 2 - padding,
+                        scale
+                    )
+                );
             }
         }
     }, [canvasSize, pattern, context, src, activeActions, polygonInfo]);

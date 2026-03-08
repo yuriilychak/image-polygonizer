@@ -7,6 +7,8 @@ import { removeSmallestPitsUntilMaxPointCount } from "./point-limit";
 import { simplifyClosedPixelContourRDPNoSelfIntersections } from "./rdp";
 import { iterativeRelaxAndSimplifyClosedContourFast } from "./relaxation";
 import { refineCoveringContourBySlidingEdgesGreedy } from "./shrink";
+import { optimizeTrianglesByEdgeFlipRepeated } from "./triangle-retopology";
+import { triangulateSimplePolygonAvoidSlivers } from "./triangulate";
 
 import type { ImageConfig, ThreadInput, ThreadOutput } from "./types";
 
@@ -39,9 +41,16 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
                 return fifthStep;
             });
             const filteredPolygons = filterContoursContainedInOthers(polygons);
-            message = { id, data: { alphaMask: extendedMask, contours: rawContours, polygons: filteredPolygons, config, offset, outline } };
+            const triangles = filteredPolygons.map(polygon => {
+                const firstStep = triangulateSimplePolygonAvoidSlivers(polygon);
+                const secondStep = optimizeTrianglesByEdgeFlipRepeated(polygon, firstStep, 10);
+
+                return secondStep;
+            });
+            message = { id, data: { alphaMask: extendedMask, contours: rawContours, polygons: filteredPolygons, triangles, config, offset, outline } };
             transferrable.push(extendedMask.buffer);
             filteredPolygons.forEach(polygon => transferrable.push(polygon.buffer));
+            triangles.forEach(triangle => transferrable.push(triangle.buffer));
             break;
         default:
             message = { type: 'error', data: 'Unknown thread input type' };

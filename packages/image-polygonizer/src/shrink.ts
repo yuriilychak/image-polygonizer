@@ -1,3 +1,5 @@
+import { getX, getY, normalizeClosedContour, clampUint16, orientRaw, pointBetween, pointOnSegment, segmentsIntersect } from './helpers';
+
 export function refineCoveringContourBySlidingEdgesGreedy(
     originalContour: Uint16Array,
     coveringContour: Uint16Array,
@@ -564,44 +566,6 @@ export function reduceCollinearClosedContour(
  * Basic helpers
  * ========================================================= */
 
-function normalizeClosedContour(contour: Uint16Array): Uint16Array {
-    let pointCount = contour.length >> 1;
-
-    if (pointCount === 0) {
-        return contour.slice();
-    }
-
-    if (
-        pointCount > 1 &&
-        contour[0] === contour[(pointCount - 1) << 1] &&
-        contour[1] === contour[((pointCount - 1) << 1) + 1]
-    ) {
-        --pointCount;
-    }
-
-    const out = new Uint16Array(pointCount << 1);
-
-    for (let i = 0; i < out.length; ++i) {
-        out[i] = contour[i];
-    }
-
-    return out;
-}
-
-function getX(
-    contour: Uint16Array | Int32Array,
-    pointIndex: number,
-): number {
-    return contour[pointIndex << 1];
-}
-
-function getY(
-    contour: Uint16Array | Int32Array,
-    pointIndex: number,
-): number {
-    return contour[(pointIndex << 1) + 1];
-}
-
 function setVertex(
     polygon: Int32Array,
     index: number,
@@ -610,12 +574,6 @@ function setVertex(
 ): void {
     polygon[index << 1] = x;
     polygon[(index << 1) + 1] = y;
-}
-
-function clampUint16(v: number): number {
-    if (v < 0) return 0;
-    if (v > 65535) return 65535;
-    return v;
 }
 
 function mod(a: number, n: number): number {
@@ -641,104 +599,3 @@ function polygonSignedAreaInt(points: Int32Array): number {
     return sum * 0.5;
 }
 
-/* =========================================================
- * Geometry
- * ========================================================= */
-
-function orientRaw(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    cx: number,
-    cy: number,
-): number {
-    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-}
-
-function pointBetween(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    px: number,
-    py: number,
-): boolean {
-    return (
-        px >= Math.min(ax, bx) &&
-        px <= Math.max(ax, bx) &&
-        py >= Math.min(ay, by) &&
-        py <= Math.max(ay, by)
-    );
-}
-
-function pointOnSegment(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    px: number,
-    py: number,
-): boolean {
-    return orientRaw(ax, ay, bx, by, px, py) === 0 &&
-        pointBetween(ax, ay, bx, by, px, py);
-}
-
-function orient(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    cx: number,
-    cy: number,
-): number {
-    const v = orientRaw(ax, ay, bx, by, cx, cy);
-
-    if (v > 0) return 1;
-    if (v < 0) return -1;
-    return 0;
-}
-
-function onSegment(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    px: number,
-    py: number,
-): boolean {
-    return (
-        px >= Math.min(ax, bx) &&
-        px <= Math.max(ax, bx) &&
-        py >= Math.min(ay, by) &&
-        py <= Math.max(ay, by) &&
-        orient(ax, ay, bx, by, px, py) === 0
-    );
-}
-
-function segmentsIntersect(
-    a0x: number,
-    a0y: number,
-    a1x: number,
-    a1y: number,
-    b0x: number,
-    b0y: number,
-    b1x: number,
-    b1y: number,
-): boolean {
-    const o1 = orient(a0x, a0y, a1x, a1y, b0x, b0y);
-    const o2 = orient(a0x, a0y, a1x, a1y, b1x, b1y);
-    const o3 = orient(b0x, b0y, b1x, b1y, a0x, a0y);
-    const o4 = orient(b0x, b0y, b1x, b1y, a1x, a1y);
-
-    if (o1 !== o2 && o3 !== o4) {
-        return true;
-    }
-
-    if (o1 === 0 && onSegment(a0x, a0y, a1x, a1y, b0x, b0y)) return true;
-    if (o2 === 0 && onSegment(a0x, a0y, a1x, a1y, b1x, b1y)) return true;
-    if (o3 === 0 && onSegment(b0x, b0y, b1x, b1y, a0x, a0y)) return true;
-    if (o4 === 0 && onSegment(b0x, b0y, b1x, b1y, a1x, a1y)) return true;
-
-    return false;
-}

@@ -1,3 +1,5 @@
+import { getX, getY, normalizeClosedContour, polygonSignedArea, clampUint16 } from './helpers';
+
 export function extendSimplifiedContourToCoverOriginal(
     originalContour: Uint16Array,
     simplifiedContour: Uint16Array,
@@ -119,66 +121,6 @@ interface Line {
     a: number;
     b: number;
     c: number;
-}
-
-/* =========================================================
- * Basic helpers
- * ========================================================= */
-
-function normalizeClosedContour(contour: Uint16Array): Uint16Array {
-    let pointCount = contour.length >> 1;
-
-    if (pointCount === 0) {
-        return contour.slice();
-    }
-
-    if (
-        pointCount > 1 &&
-        contour[0] === contour[(pointCount - 1) << 1] &&
-        contour[1] === contour[((pointCount - 1) << 1) + 1]
-    ) {
-        --pointCount;
-    }
-
-    const out = new Uint16Array(pointCount << 1);
-
-    for (let i = 0; i < out.length; ++i) {
-        out[i] = contour[i];
-    }
-
-    return out;
-}
-
-function getX(contour: Uint16Array, pointIndex: number): number {
-    return contour[pointIndex << 1];
-}
-
-function getY(contour: Uint16Array, pointIndex: number): number {
-    return contour[(pointIndex << 1) + 1];
-}
-
-function polygonSignedArea(contour: Uint16Array): number {
-    const count = contour.length >> 1;
-    let sum = 0;
-
-    for (let i = 0; i < count; ++i) {
-        const j = (i + 1) % count;
-
-        const xi = getX(contour, i);
-        const yi = getY(contour, i);
-        const xj = getX(contour, j);
-        const yj = getY(contour, j);
-
-        sum += xi * yj - xj * yi;
-    }
-
-    return sum * 0.5;
-}
-
-function clampUint16(v: number): number {
-    if (v < 0) return 0;
-    if (v > 65535) return 65535;
-    return v;
 }
 
 /* =========================================================
