@@ -3,6 +3,7 @@ import { extendSimplifiedContourToCoverOriginal } from "./extend";
 import { filterContoursContainedInOthers } from "./filter-contours";
 import { fileToImageConfig, imageBitmapToRgbaPixels, packAlphaMaskBits } from "./helpers";
 import { extractAllOuterContours } from "./marching-sqares";
+import { removeSmallestPitsUntilMaxPointCount } from "./point-limit";
 import { simplifyClosedPixelContourRDPNoSelfIntersections } from "./rdp";
 import { iterativeRelaxAndSimplifyClosedContourFast } from "./relaxation";
 import { refineCoveringContourBySlidingEdgesGreedy } from "./shrink";
@@ -25,20 +26,22 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
             const outline = 2;
             const maskW = src.width + 2 * offset;
             const maskH = src.height + 2 * offset;
-            // alphaMask: padded, size maskW×maskH — used for display
             const alphaMask = packAlphaMaskBits(pixels, src.width, src.height, config.alphaThreshold, offset);
-            // extendedMask: dilated version, same coordinate space — used for contour + pixel checks
             const extendedMask = extendBitMask(alphaMask, maskW, maskH, outline);
-            // contours are in alphaMask/extendedMask coordinate space (default padding=1)
             const rawContours = extractAllOuterContours(extendedMask, maskW, maskH);
-            const polygons = rawContours.map(contour => simplifyClosedPixelContourRDPNoSelfIntersections(contour, config.minimalDistance));
-            const postSimplifyPolygons = polygons
-                .map((polygon) => iterativeRelaxAndSimplifyClosedContourFast(polygon, 0.008, 170, 260, 120, config.minimalDistance))
-                .map((contour, index) => extendSimplifiedContourToCoverOriginal(rawContours[index], contour))
-                .map((contour, index) => refineCoveringContourBySlidingEdgesGreedy(rawContours[index], contour));
-            const filteredPolygons = filterContoursContainedInOthers(postSimplifyPolygons);
+            const polygons = rawContours.map(contour => {
+                const firstStep = simplifyClosedPixelContourRDPNoSelfIntersections(contour, config.minimalDistance);
+                const secondStep = iterativeRelaxAndSimplifyClosedContourFast(firstStep, 0.008, 170, 260, 120, config.minimalDistance);
+                const thirdStep = removeSmallestPitsUntilMaxPointCount(secondStep, config.maxPointCount);
+                const fouthStep = extendSimplifiedContourToCoverOriginal(contour, thirdStep);
+                const fifthStep = refineCoveringContourBySlidingEdgesGreedy(contour, fouthStep);
+
+                return fifthStep;
+            });
+            const filteredPolygons = filterContoursContainedInOthers(polygons);
             message = { id, data: { alphaMask: extendedMask, contours: rawContours, polygons: filteredPolygons, config, offset, outline } };
             transferrable.push(extendedMask.buffer);
+            filteredPolygons.forEach(polygon => transferrable.push(polygon.buffer));
             break;
         default:
             message = { type: 'error', data: 'Unknown thread input type' };

@@ -36,10 +36,10 @@ export function iterativeRelaxAndSimplifyClosedContourFast(
 }
 
 /* =========================================================
- * 1. Швидке видалення ям
- * Критерії:
- * - площа ями <= percentage * totalArea
- * - або кут ями > holeAngle
+ * 1. Fast removal of pits
+ * Criteria:
+ * - pit area <= percentage * totalArea
+ * - or pit angle > holeAngle
  * ========================================================= */
 
 export function removeSmallPitsFast(
@@ -129,10 +129,10 @@ export function removeSmallPitsFast(
 }
 
 /* =========================================================
- * 2. Швидке видалення горбів
- * Критерії:
- * - кут горба > angleDeg
- * - або площа горба <= percentage * totalArea, якщо кут > pickAngle
+ * 2. Fast removal of humps
+ * Criteria:
+ * - hump angle > angleDeg
+ * - or hump area <= percentage * totalArea if angle > pickAngle
  * ========================================================= */
 
 export function removeObtuseHumpsFast(
@@ -299,7 +299,7 @@ function materializeState(state: LinkedContourState): Uint16Array {
 }
 
 /* =========================================================
- * Локальна перевірка нового ребра після видалення вершини
+ * Local check of new edge after vertex removal
  * ========================================================= */
 
 function wouldCreateSelfIntersectionAfterRemoval(
@@ -357,7 +357,7 @@ function wouldCreateSelfIntersectionAfterRemoval(
 }
 
 /* =========================================================
- * Геометрія
+ * Geometry
  * ========================================================= */
 
 function normalizeClosedContour(contour: Uint16Array): Uint16Array {
@@ -460,7 +460,7 @@ function interiorAngleRad(
 }
 
 /* =========================================================
- * Перетини
+ * Intersections
  * ========================================================= */
 
 function orient(

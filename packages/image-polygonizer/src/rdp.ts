@@ -8,7 +8,7 @@ export function simplifyClosedPixelContourRDPNoSelfIntersections(
         return contour.slice();
     }
 
-    // Прибираємо дубль останньої точки, якщо контур уже замкнений повтором першої.
+    // Remove duplicate last point if the contour is already closed by repeating the first.
     if (
         contour[0] === contour[(pointCount - 1) << 1] &&
         contour[1] === contour[((pointCount - 1) << 1) + 1]
@@ -35,12 +35,12 @@ export function simplifyClosedPixelContourRDPNoSelfIntersections(
     const anchor = findAnchorIndex(normalized, pointCount);
     const split = findFarthestPointFromAnchor(normalized, pointCount, anchor);
 
-    // Якщо контур вироджений, повертаємо як є.
+    // If the contour is degenerate, return it as is.
     if (split === anchor) {
         return normalized;
     }
 
-    // Будуємо дві дуги:
+    // Build two arcs:
     // arc1: anchor -> ... -> split
     // arc2: split -> ... -> anchor
     const arc1 = buildArcIndices(pointCount, anchor, split);
@@ -79,7 +79,7 @@ export function simplifyClosedPixelContourRDPNoSelfIntersections(
 }
 
 /* =========================================================
- * Базові утиліти
+ * Basic utilities
  * ========================================================= */
 
 function getX(contour: Uint16Array, pointIndex: number): number {
@@ -179,8 +179,8 @@ function mergeKeptArcs(
         }
     }
 
-    // У arc2 пропускаємо першу і останню точки,
-    // бо це ті самі split і anchor, уже додані з arc1.
+    // In arc2 skip the first and last points,
+    // because these are the same split and anchor, already added from arc1.
     for (let i = 1; i < arc2.length - 1; ++i) {
         if (keep2[i] !== 0) {
             kept.push(arc2[i]);
@@ -295,7 +295,7 @@ function isArcAdjacent(edgeA: number, edgeB: number, edgeCount: number): boolean
 }
 
 /* =========================================================
- * RDP для відкритої ламаної
+ * RDP for an open polyline
  * ========================================================= */
 
 function simplifyOpenPolylineRDPByLineDistance(
@@ -369,7 +369,7 @@ function simplifyOpenPolylineRDPByLineDistance(
 }
 
 /* =========================================================
- * Самоперетини
+ * Self intersections
  * ========================================================= */
 
 function resolveClosedContourSelfIntersections(
@@ -576,7 +576,7 @@ function hasSelfIntersection(
 }
 
 /* =========================================================
- * Матеріалізація
+ * Materialization
  * ========================================================= */
 
 function materializeContour(

@@ -35,7 +35,7 @@ export function extendSimplifiedContourToCoverOriginal(
         let nx: number;
         let ny: number;
 
-        // Повертаємо стару логіку нормалі
+        // Use the old normal logic
         if (orientation > 0) {
             nx = dy / len;
             ny = -dx / len;

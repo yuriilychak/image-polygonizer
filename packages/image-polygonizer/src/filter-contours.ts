@@ -32,12 +32,12 @@ export function filterContoursContainedInOthers(
             const boxB = boxes[j];
             const areaB = areas[j];
 
-            // Менший або рівний за площею контур тільки й може бути вкладеним.
+            // Only a contour smaller or equal in area can be nested.
             if (areaA > areaB) {
                 continue;
             }
 
-            // Швидкий bbox-фільтр.
+            // Quick bounding-box filter.
             if (!bboxContains(boxB, boxA)) {
                 continue;
             }
@@ -75,12 +75,12 @@ function isContourInsideOther(
         return false;
     }
 
-    // 1. Якщо є перетини ребер, inner не може бути повністю всередині outer.
+    // 1. If there are edge intersections, inner cannot be completely inside outer.
     if (contoursIntersect(inner, outer)) {
         return false;
     }
 
-    // 2. Достатньо перевірити одну вершину inner.
+    // 2. It's sufficient to check one vertex of inner.
     const px = getX(inner, 0);
     const py = getY(inner, 0);
 

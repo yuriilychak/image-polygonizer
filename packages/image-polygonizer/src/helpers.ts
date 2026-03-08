@@ -22,10 +22,10 @@ export function packAlphaMaskBits(
     const ph = height + (padding << 1);
     const dstPixelCount = pw * ph;
 
-    // 1 біт на піксель у padded зображенні
+    // 1 bit per pixel in the padded image
     const out = new Uint8Array((dstPixelCount + 7) >>> 3);
 
-    // padding=0 -> старий швидкий шлях без зайвих умов
+    // padding=0 -> old fast path without extra checks
     if (padding === 0) {
         let outIndex = 0;
         let byte = 0;
@@ -47,13 +47,13 @@ export function packAlphaMaskBits(
     }
 
     // ---- padded packing ----
-    // Ми пишемо тільки "внутрішній" прямокутник (padding..padding+width-1, padding..padding+height-1),
-    // а бордер лишається 0 (out вже ініціалізований нулями).
+    // We write only the "inner" rectangle (padding..padding+width-1, padding..padding+height-1),
+    // and the border remains 0 (out is already zero-initialized).
 
     for (let y = 0; y < height; y++) {
-        // рядок у padded сітці
+        // row in the padded grid
         const dstRowBase = (y + padding) * pw + padding;
-        // рядок у src (RGBA)
+        // row in the src (RGBA)
         let a = (y * width * 4) + 3;
 
         for (let x = 0; x < width; x++, a += 4) {
@@ -77,7 +77,7 @@ export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     hasPolygons: false,
     id: crypto.randomUUID(),
     config: { ...DEFAULT_CONFIG },
-    polygonInfo: { ...DEFAULT_POLYGON_INFO},
+    polygonInfo: { ...DEFAULT_POLYGON_INFO },
 });
 
 
@@ -118,8 +118,8 @@ export async function imageBitmapToRgbaPixels(bitmap: ImageBitmap): Promise<Uint
     // img.data is Uint8ClampedArray. Make a Uint8Array (no copy) view of the same buffer:
     const pixels = new Uint8Array(img.data.buffer, img.data.byteOffset, img.data.byteLength);
 
-    // Якщо тобі потрібен *власний* буфер (щоб без clamped-буфера), тоді:
-    // const pixels = new Uint8Array(img.data); // (копія)
+    // If you need your *own* buffer (to avoid the clamped buffer), then:
+    // const pixels = new Uint8Array(img.data); // (copy)
 
     return pixels;
 }
