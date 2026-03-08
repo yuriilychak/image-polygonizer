@@ -112,11 +112,11 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 drawTransparentPixelsOverlay(
                     context,
                     polygonInfo.alphaMask,
-                    src.width + 4,
-                    src.height + 4,
+                    src.width + polygonInfo.offset * 2,
+                    src.height + polygonInfo.offset * 2,
                     {
-                        offsetX: (canvasSize.width - scaledWidth) / 2,
-                        offsetY: (canvasSize.height - scaledHeight) / 2,
+                        offsetX: (canvasSize.width - scaledWidth) / 2 - polygonInfo.offset * scale,
+                        offsetY: (canvasSize.height - scaledHeight) / 2 - polygonInfo.offset * scale,
                         scale,
                         padding: 2,
                         colorRGBA: [255, 0, 0, 120],
@@ -126,8 +126,8 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
 
             if (activeActions.includes('contour') && polygonInfo.contours.length > 0) {
                 drawContoursOverlay(context, polygonInfo.contours, {
-                    offsetX: (canvasSize.width - scaledWidth) / 2,
-                    offsetY: (canvasSize.height - scaledHeight) / 2,
+                    offsetX: (canvasSize.width - scaledWidth) / 2 - (polygonInfo.offset - polygonInfo.outline) * scale,
+                    offsetY: (canvasSize.height - scaledHeight) / 2 - (polygonInfo.offset - polygonInfo.outline) * scale,
                     scale,
                     lineWidth: 2,
                     color: 'rgba(0, 255, 0, 1)',
@@ -137,8 +137,8 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
 
             if (activeActions.includes('polygon') && polygonInfo.polygons.length > 0) {
                 drawPolygonsDebug(context, polygonInfo.polygons, {
-                    offsetX: (canvasSize.width - scaledWidth) / 2,
-                    offsetY: (canvasSize.height - scaledHeight) / 2,
+                    offsetX: (canvasSize.width - scaledWidth) / 2 - (polygonInfo.offset - polygonInfo.outline) * scale,
+                    offsetY: (canvasSize.height - scaledHeight) / 2 - (polygonInfo.offset - polygonInfo.outline) * scale,
                     scale,
                     lineWidth: 2,
                     color: 'rgba(0, 0, 255, 1)',

@@ -15,7 +15,14 @@ export interface ImageMetadata {
     src: ImageBitmap;
 }
 
-export type PolygonInfo = { alphaMask: Uint8Array, contours: Uint16Array[], polygons: Uint16Array[], config: ImageSetting };
+export type PolygonInfo = { 
+    alphaMask: Uint8Array, 
+    contours: Uint16Array[], 
+    polygons: Uint16Array[], 
+    config: ImageSetting, 
+    offset: number;
+    outline: number;
+ };
 
 export interface ImageConfig extends ImageMetadata {
     id: string;

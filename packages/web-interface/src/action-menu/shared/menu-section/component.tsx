@@ -17,6 +17,8 @@ type MenuSectionProps = {
     actions?: ReducerAction[];
     onAction?: ImageActionCallback;
     disabled?: boolean;
+    selectAction?: ReducerAction;
+    selected?: boolean;
 };
 
 const MenuSection: FC<MenuSectionProps> = ({
@@ -24,29 +26,44 @@ const MenuSection: FC<MenuSectionProps> = ({
     titleKey,
     children,
     disabled = false,
+    selected = false,
     className = '',
     contentClassName = '',
+    selectAction,
     actions = [],
     onAction = NOOP,
-}) => (
-    <div className={`menu-section-root ${className}`}>
-        <div className="menu-section-header">
-            <span className="menu-section-title">{t(titleKey)}</span>
-            <div>
-                {actions.map(action => (
-                    <ActionButton
-                        t={t}
-                        action={action}
-                        key={action}
-                        onAction={onAction}
+}) => {
+    const onToggleSelectAll = () => selectAction && onAction(selectAction, '', null);
+
+    return (
+        <div className={`menu-section-root ${className}`}>
+            <div className="menu-section-header">
+                {selectAction && (
+                    <input
+                        className="menu-section-checkbox"
+                        type="checkbox"
                         disabled={disabled}
+                        checked={selected}
+                        onChange={onToggleSelectAll}
                     />
-                ))}
+                )}
+                <span className="menu-section-title">{t(titleKey)}</span>
+                <div>
+                    {actions.map(action => (
+                        <ActionButton
+                            t={t}
+                            action={action}
+                            key={action}
+                            onAction={onAction}
+                            disabled={disabled}
+                        />
+                    ))}
+                </div>
             </div>
+            <div className={`menu-section-content ${contentClassName}`}>{children}</div>
+            <div className="menu-section-divider" />
         </div>
-        <div className={`menu-section-content ${contentClassName}`}>{children}</div>
-        <div className="menu-section-divider" />
-    </div>
-);
+    );
+};
 
 export default memo(MenuSection);

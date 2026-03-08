@@ -11,6 +11,8 @@ export const DEFAULT_POLYGON_INFO: PolygonInfo = {
     contours: [],
     polygons: [],
     config: { ...DEFAULT_CONFIG },
+    offset: 0,
+    outline: 0,
 };
 
 export const NOOP = (): void => { };

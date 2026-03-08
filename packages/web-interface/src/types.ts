@@ -18,7 +18,8 @@ export type ReducerAction =
   | 'setAction'
   | 'resetAction'
   | 'switchLanguage'
-  | 'updatePolygonInfo';
+  | 'updatePolygonInfo'
+  | 'toggleSelectAllImages';
 
 export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 

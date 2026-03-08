@@ -31,6 +31,8 @@ const ImageList: FC<ImageListProps> = ({
         titleKey="menu_section_label_image_list"
         className="image-list-root"
         contentClassName="image-list-content"
+        selectAction={images.length ? "toggleSelectAllImages" : undefined}
+        selected={!images.some(img => !img.selected)}
         actions={ACTIONS}
         onAction={onImageAction}
         disabled={disabled}

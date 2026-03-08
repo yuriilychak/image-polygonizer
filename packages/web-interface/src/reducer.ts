@@ -60,6 +60,13 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
         return { ...state, images, buttonActions };
     },
+    toggleSelectAllImages: (state) => {
+        const isAllImagesSelected = state.images.every(img => img.selected);
+        const images = state.images.map(img => ({ ...img, selected: !isAllImagesSelected }));
+        const buttonActions = getButtonActions(images);
+
+        return { ...state, images, buttonActions };      
+    },
     setDisabled: state => ({ ...state, disabled: true }),
     setEnabled: state => ({ ...state, disabled: false }),
     setHasCancelFileListener: (state, hasListener: boolean) => ({
@@ -85,8 +92,6 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
     updatePolygonInfo: (state, payload: ImageActionPayload<PolygonInfo>[]) => {
         const updatedImages = state.images.map(img => {
             const update = payload.find(p => p.id === img.id);
-
-            console.log('UPDATE IMAGE', img.id, update);
 
             return update
                 ? {
