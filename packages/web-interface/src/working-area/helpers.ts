@@ -315,7 +315,7 @@ export function drawTriangulation(
     ctx.lineTo(x2, y2);
     ctx.closePath();
 
-    ctx.globalAlpha = 0.2;
+    ctx.globalAlpha = 0.4;
     ctx.fill();
 
     ctx.globalAlpha = 1;

@@ -171,7 +171,7 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_A
                         context,
                         polygons[index],
                         triangle,
-                        'rgba(255, 0, 255, 1)',
+                        'rgba(255, 0, 0, 1)',
                         (canvasSize.width - scaledWidth) / 2 - padding,
                         (canvasSize.height - scaledHeight) / 2 - padding,
                         scale
