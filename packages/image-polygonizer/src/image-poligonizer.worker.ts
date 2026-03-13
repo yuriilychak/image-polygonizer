@@ -4,6 +4,7 @@ import { filterContoursContainedInOthers } from "./filter-contours";
 import { fileToImageConfig, imageBitmapToRgbaPixels, packAlphaMaskBits } from "./helpers";
 import { extractAllOuterContours } from "./marching-sqares";
 import { removeSmallestPitsUntilMaxPointCount } from "./point-limit";
+import PolygonData from "./polygon-data";
 import { simplifyClosedPixelContourRDPNoSelfIntersections } from "./rdp";
 import { iterativeRelaxAndSimplifyClosedContourFast } from "./relaxation";
 import { refineCoveringContourBySlidingEdgesGreedy } from "./shrink";
@@ -47,10 +48,10 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
 
                 return secondStep;
             });
-            message = { id, data: { alphaMask: extendedMask, contours: rawContours, polygons: filteredPolygons, triangles, config, offset, outline } };
-            transferrable.push(extendedMask.buffer);
-            filteredPolygons.forEach(polygon => transferrable.push(polygon.buffer));
-            triangles.forEach(triangle => transferrable.push(triangle.buffer));
+            const polygonData = PolygonData.getInstance().serialize(extendedMask, rawContours, filteredPolygons, triangles, config, offset, outline);
+            
+            message = { id, data: polygonData };
+            transferrable.push(polygonData.buffer);
             break;
         default:
             message = { type: 'error', data: 'Unknown thread input type' };

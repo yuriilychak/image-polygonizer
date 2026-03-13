@@ -2,7 +2,7 @@ import { ImagePolygonizer } from 'image-polygonizer';
 import { getButtonActions } from './helpers';
 import { LANGUAGE_LIST } from './constants';
 
-import type { ImageConfig, ImageActionPayload, PolygonInfo } from 'image-polygonizer';
+import type { ImageConfig, ImageActionPayload } from 'image-polygonizer';
 import type {
     ReducerAction,
     ReducerEvent,
@@ -89,7 +89,7 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
         return { ...state, languageIndex, currentLanguage };
     },
-    updatePolygonInfo: (state, payload: ImageActionPayload<PolygonInfo>[]) => {
+    updatePolygonInfo: (state, payload: ImageActionPayload<Uint16Array>[]) => {
         const updatedImages = state.images.map(img => {
             const update = payload.find(p => p.id === img.id);
 

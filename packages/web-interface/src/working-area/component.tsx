@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { DEFAULT_POLYGON_INFO } from 'image-polygonizer';
+import { PolygonData } from 'image-polygonizer';
 import {
     createBackgroundPatern,
     drawContoursOverlay,
@@ -10,17 +10,18 @@ import {
 import { DRAW_ITEMS_TO_CHAR } from './constants';
 
 import type { FC, MouseEventHandler } from 'react';
-import type { PolygonInfo } from 'image-polygonizer';
 import type { DrawItem } from '../types';
 
 import './component.css';
 
 type WorkingAreaProps = {
     src?: ImageBitmap | null;
-    polygonInfo?: PolygonInfo;
+    polygonInfo?: Uint16Array;
 };
 
-const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_POLYGON_INFO }) => {
+const DEFAULT_ARRAY = new Uint16Array(0);
+
+const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_ARRAY }) => {
     const [availableActions, setAvailableActions] = useState<DrawItem[]>([]);
     const [activeActions, setActiveActions] = useState<DrawItem[]>([]);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -46,21 +47,24 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
     };
 
     useEffect(() => {
+        
         const nextActions: DrawItem[] = [];
-        if (polygonInfo.alphaMask.length > 0) {
-            nextActions.push('alpha');
-        }
+        if (polygonInfo.length !== 0) {
+            if (PolygonData.getInstance().hasAlphaMask(polygonInfo)) {
+                nextActions.push('alpha');
+            }
 
-        if (polygonInfo.contours.length > 0) {
-            nextActions.push('contour');
-        }
+            if (PolygonData.getInstance().hasContours(polygonInfo)) {
+                nextActions.push('contour');
+            }
 
-        if (polygonInfo.polygons.length > 0) {
-            nextActions.push('polygon');
-        }
+            if (PolygonData.getInstance().hasPolygons(polygonInfo)) {
+                nextActions.push('polygon');
+            }
 
-        if (polygonInfo.triangles.length > 0) {
-            nextActions.push('triangles');
+            if (PolygonData.getInstance().hasTriangles(polygonInfo)) {
+                nextActions.push('triangles');
+            }
         }
 
         setAvailableActions(nextActions);
@@ -79,6 +83,7 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
     }, [handleResize]);
 
     useEffect(() => {
+        console.log('Redrawing canvas with pattern:', canvasSize, context);
         if (canvasSize.width === 0 || canvasSize.height === 0 || !context) {
             return;
         }
@@ -103,9 +108,11 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 (canvasSize.height - 2 * offset) / src.height,
                 1
             );
+            const polygonOffset = PolygonData.getInstance().deserializeOffset(polygonInfo);
+            const polygonOutline = PolygonData.getInstance().deserializeOutline(polygonInfo);
             const scaledWidth = src.width * scale;
             const scaledHeight = src.height * scale;
-            const padding = (polygonInfo.offset - polygonInfo.outline) * scale;
+            const padding = (polygonOffset - polygonOutline) * scale;
             context.drawImage(
                 src,
                 (canvasSize.width - scaledWidth) / 2,
@@ -114,12 +121,14 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 scaledHeight
             );
 
-            if (activeActions.includes('alpha') && polygonInfo.alphaMask.length > 0) {
+
+            if (activeActions.includes('alpha') && PolygonData.getInstance().hasAlphaMask(polygonInfo)) {
+                const alphaMask = PolygonData.getInstance().deserializeAlphaMask(polygonInfo);
                 drawTransparentPixelsOverlay(
                     context,
-                    polygonInfo.alphaMask,
-                    src.width + polygonInfo.offset * 2,
-                    src.height + polygonInfo.offset * 2,
+                    alphaMask,
+                    src.width + polygonOffset * 2,
+                    src.height + polygonOffset * 2,
                     {
                         offsetX: (canvasSize.width - scaledWidth) / 2 - padding,
                         offsetY: (canvasSize.height - scaledHeight) / 2 - padding,
@@ -130,8 +139,9 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 );
             }
 
-            if (activeActions.includes('contour') && polygonInfo.contours.length > 0) {
-                drawContoursOverlay(context, polygonInfo.contours, {
+            if (activeActions.includes('contour') && PolygonData.getInstance().hasContours(polygonInfo)) {
+                const contours = PolygonData.getInstance().deserializeContours(polygonInfo);
+                drawContoursOverlay(context, contours, {
                     offsetX: (canvasSize.width - scaledWidth) / 2 - padding,
                     offsetY: (canvasSize.height - scaledHeight) / 2 - padding,
                     scale,
@@ -141,8 +151,9 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 });
             }
 
-            if (activeActions.includes('polygon') && polygonInfo.polygons.length > 0) {
-                drawPolygonsDebug(context, polygonInfo.polygons, {
+            if (activeActions.includes('polygon') && PolygonData.getInstance().hasPolygons(polygonInfo)) {
+                const polygons = PolygonData.getInstance().deserializePolygons(polygonInfo);
+                drawPolygonsDebug(context, polygons, {
                     offsetX: (canvasSize.width - scaledWidth) / 2 - padding,
                     offsetY: (canvasSize.height - scaledHeight) / 2 - padding,
                     scale,
@@ -152,11 +163,13 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_P
                 });
             }
 
-            if (activeActions.includes('triangles') && polygonInfo.triangles.length > 0) {
-                polygonInfo.triangles.forEach((triangle, index) =>
+            if (activeActions.includes('triangles') && PolygonData.getInstance().hasTriangles(polygonInfo)) {
+                const triangles = PolygonData.getInstance().deserializeTriangles(polygonInfo);
+                const polygons = PolygonData.getInstance().deserializePolygons(polygonInfo);
+                triangles.forEach((triangle, index) =>
                     drawTriangulation(
                         context,
-                        polygonInfo.polygons[index],
+                        polygons[index],
                         triangle,
                         'rgba(255, 0, 255, 1)',
                         (canvasSize.width - scaledWidth) / 2 - padding,

@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, DEFAULT_POLYGON_INFO } from './constants';
+import { DEFAULT_CONFIG } from './constants';
 
 import type { ImageConfig } from './types';
 
@@ -77,7 +77,7 @@ export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     hasPolygons: false,
     id: crypto.randomUUID(),
     config: { ...DEFAULT_CONFIG },
-    polygonInfo: { ...DEFAULT_POLYGON_INFO },
+    polygonInfo: new Uint16Array(0),
 });
 
 

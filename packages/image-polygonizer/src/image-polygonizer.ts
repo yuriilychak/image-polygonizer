@@ -1,6 +1,6 @@
 import Parallel from './parallel';
 
-import type { ImageConfig, ImagePolygonizerInstance, ImageActionPayload, ThreadInput, PolygonInfo } from './types';
+import type { ImageConfig, ImagePolygonizerInstance, ImageActionPayload, ThreadInput } from './types';
 export default class ImagePolygonizer implements ImagePolygonizerInstance {
     #parallel: Parallel;
 
@@ -31,7 +31,7 @@ export default class ImagePolygonizer implements ImagePolygonizerInstance {
             : Promise.resolve([]);
     }
 
-    async polygonize(images: ImageConfig[]): Promise<ImageActionPayload<PolygonInfo>[]> {
+    async polygonize(images: ImageConfig[]): Promise<ImageActionPayload<Uint16Array>[]> {
         const threadInput: ThreadInput<'polygonize'>[] = images.map((image) => ({
             type: 'polygonize',
             data: image,
@@ -40,7 +40,7 @@ export default class ImagePolygonizer implements ImagePolygonizerInstance {
             ? new Promise((resolve, reject) =>
                 this.#parallel.start(
                     threadInput,
-                    (threadOutput: ImageActionPayload<PolygonInfo>[]) => resolve(threadOutput),
+                    (threadOutput: ImageActionPayload<Uint16Array>[]) => resolve(threadOutput),
                     reject
                 )
             )

@@ -1,5 +1,6 @@
 export { default as ImagePolygonizer } from './image-polygonizer';
-export { NOOP, DEFAULT_POLYGON_INFO } from './constants';
+export { NOOP } from './constants';
+export { default as PolygonData } from './polygon-data';
 export type {
     ImageSetting,
     ImageMetadata,
@@ -7,5 +8,4 @@ export type {
     ImageConfigKey,
     ImagePolygonizerInstance,
     ImageActionPayload,
-    PolygonInfo,
 } from './types';
