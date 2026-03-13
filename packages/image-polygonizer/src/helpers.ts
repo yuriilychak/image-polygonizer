@@ -71,7 +71,7 @@ export function packAlphaMaskBits(
 export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     label: file.name.replace(/\.[^/.]+$/, ''),
     type: file.type.replace('image/', ''),
-    src: await createImageBitmap(file),
+    src: await createImageBitmap(file, { premultiplyAlpha: 'none' }),
     selected: false,
     outdated: false,
     hasPolygons: false,
@@ -541,3 +541,4 @@ export function orientTriangleLikePolygon(
 
     return [a, c, b];
 }
+

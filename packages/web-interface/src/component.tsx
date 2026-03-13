@@ -15,10 +15,13 @@ const App: FC = () => {
         disabled,
         buttonActions,
         imageLoaderRef,
+        projectLoaderRef,
+        saveAnchorRef,
         onActionClick,
         onImageAction,
         onSettingChange,
         onImageUpload,
+        onProjectUpload,
         onSwitchLanguage,
     } = usePolygonizer();
 
@@ -36,7 +39,10 @@ const App: FC = () => {
                 onImageAction={onImageAction}
                 onSettingChange={onSettingChange}
                 onImageUpload={onImageUpload}
+                onProjectUpload={onProjectUpload}
                 imageLoaderRef={imageLoaderRef}
+                projectLoaderRef={projectLoaderRef}
+                saveAnchorRef={saveAnchorRef}
             />
             <WorkingArea src={currentImage?.src} polygonInfo={currentImage?.polygonInfo} />
         </div>

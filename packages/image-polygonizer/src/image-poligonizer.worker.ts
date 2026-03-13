@@ -2,6 +2,7 @@ import { extendBitMask } from "./bit-mask-extend";
 import { extendSimplifiedContourToCoverOriginal } from "./extend";
 import { filterContoursContainedInOthers } from "./filter-contours";
 import { fileToImageConfig, imageBitmapToRgbaPixels, packAlphaMaskBits } from "./helpers";
+import { ImageConfigSerialization } from "./image-config-serialization";
 import { extractAllOuterContours } from "./marching-sqares";
 import { removeSmallestPitsUntilMaxPointCount } from "./point-limit";
 import PolygonData from "./polygon-data";
@@ -22,6 +23,19 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
             message = await fileToImageConfig(data.data as File);
             transferrable.push(message.src);
             break;
+        case 'projectImport': {
+            const config = await ImageConfigSerialization.deserialize(data.data as Uint8Array);
+            message = config;
+            transferrable.push(config.src);
+            transferrable.push(config.polygonInfo.buffer);
+            break;
+        }
+        case 'projectSave': {
+            const serialized = await ImageConfigSerialization.serialize(data.data as ImageConfig);
+            message = serialized;
+            transferrable.push(serialized.buffer);
+            break;
+        }
         case 'polygonize':
             const { id, src, config } = data.data as ImageConfig;
             const pixels = await imageBitmapToRgbaPixels(src);
@@ -49,7 +63,7 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
                 return secondStep;
             });
             const polygonData = PolygonData.getInstance().serialize(extendedMask, rawContours, filteredPolygons, triangles, config, offset, outline);
-            
+
             message = { id, data: polygonData };
             transferrable.push(polygonData.buffer);
             break;

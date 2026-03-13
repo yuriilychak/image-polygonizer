@@ -21,11 +21,14 @@ type ActionMenuProps = {
     currentLanguage: LanguageKey;
     currentImage: ImageConfig | null;
     imageLoaderRef: RefObject<HTMLInputElement>;
+    projectLoaderRef: RefObject<HTMLInputElement>;
+    saveAnchorRef: RefObject<HTMLAnchorElement>;
     buttonActions: ButtonAction[];
     onActionClick: ButtonActionCallback;
     onSettingChange: SettingChangeCallback;
     onImageAction: ImageActionCallback;
     onImageUpload: ChangeEventHandler<HTMLInputElement>;
+    onProjectUpload: ChangeEventHandler<HTMLInputElement>;
     onSwitchLanguage: MouseEventHandler;
     disabled: boolean;
     t: TFunction;
@@ -37,12 +40,15 @@ const ActionMenu: FC<ActionMenuProps> = ({
     currentLanguage,
     disabled,
     imageLoaderRef,
+    projectLoaderRef,
+    saveAnchorRef,
     images,
     buttonActions,
     onActionClick,
     onSettingChange,
     onImageAction,
     onImageUpload,
+    onProjectUpload,
     onSwitchLanguage,
 }) => (
     <div className="action-menu">
@@ -86,6 +92,16 @@ const ActionMenu: FC<ActionMenuProps> = ({
             onChange={onImageUpload}
             ref={imageLoaderRef}
         />
+        <input
+            id="project-upload-input"
+            type="file"
+            accept=".ipp"
+            className="action-menu-image-loader"
+            onChange={onProjectUpload}
+            ref={projectLoaderRef}
+        />
+        {/* eslint-disable-next-line jsx-a11y/anchor-has-content */}
+        <a ref={saveAnchorRef} className="action-menu-image-loader" />
     </div>
 );
 

@@ -9,6 +9,8 @@ export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
     const [state, dispatch] = useReducer(REDUCER, INITIAL_STATE);
     const imageLoaderRef = useRef<HTMLInputElement>(null);
+    const projectLoaderRef = useRef<HTMLInputElement>(null);
+    const saveAnchorRef = useRef<HTMLAnchorElement>(null);
     const {
         isInit,
         images,
@@ -32,6 +34,7 @@ export default function usePolygonizer() {
     );
 
     const onCancelFileUpload = useCallback(() => dispatch({ type: 'setEnabled' }), []);
+    const onCancelProjectUpload = useCallback(() => dispatch({ type: 'resetAction' }), []);
 
     const onImageAction: ImageActionCallback = useCallback(
         (type, id, data) => {
@@ -63,7 +66,7 @@ export default function usePolygonizer() {
             dispatch({ type: 'setEnabled' });
             return;
         }
-        
+
         const startTime = performance.now();
         const result: ImageConfig[] = await imagePolygonizer.importImages(files);
         const endTime = performance.now();
@@ -73,6 +76,21 @@ export default function usePolygonizer() {
             dispatch({ type: 'addImages', payload: result });
         }
 
+        target.value = '';
+    }, [imagePolygonizer]);
+
+    const onProjectUpload: ChangeEventHandler<HTMLInputElement> = useCallback(async ({ target }) => {
+        const file = target.files?.[0];
+
+        if (!file) {
+            dispatch({ type: 'resetAction' });
+            return;
+        }
+
+        const buffer = await file.arrayBuffer();
+        const result = await imagePolygonizer.deserializeImages(new Uint8Array(buffer));
+
+        dispatch({ type: 'importProject', payload: result });
         target.value = '';
     }, [imagePolygonizer]);
 
@@ -86,18 +104,34 @@ export default function usePolygonizer() {
         switch (currentAction) {
             case 'generate':
                 imagePolygonizer
-                .polygonize(images.filter(img => img.selected))
-                .then((outputs) => dispatch({ type: 'updatePolygonInfo', payload: outputs }));
+                    .polygonize(images.filter(img => img.selected))
+                    .then((outputs) => dispatch({ type: 'updatePolygonInfo', payload: outputs }));
                 break;
             case 'import':
+                if (projectLoaderRef.current) {
+                    projectLoaderRef.current.addEventListener('cancel', onCancelProjectUpload, { once: true });
+                    projectLoaderRef.current.click();
+                }
                 break;
             case 'export':
                 break;
             case 'save':
+                imagePolygonizer
+                    .serializeImages(images)
+                    .then((data) => {
+                        const blob = new Blob([data.slice().buffer], { type: 'application/octet-stream' });
+                        const url = URL.createObjectURL(blob);
+                        const a = saveAnchorRef.current!;
+                        a.href = url;
+                        a.download = 'ImagePolygonizeProject.ipp';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        dispatch({ type: 'loadingFinish' });
+                    });
                 break;
             default:
         }
-    }, [isInit, currentAction, imagePolygonizer, images]);
+    }, [isInit, currentAction, imagePolygonizer, images, onCancelProjectUpload]);
 
     useEffect(() => {
         dispatch({ type: 'init' });
@@ -119,6 +153,9 @@ export default function usePolygonizer() {
         t,
         images,
         imageLoaderRef,
+        projectLoaderRef,
+        saveAnchorRef,
+        onProjectUpload,
         currentImage,
         currentLanguage,
         disabled,

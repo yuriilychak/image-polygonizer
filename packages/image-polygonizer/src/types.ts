@@ -29,20 +29,22 @@ export type ImageActionPayload<T = any> = { id: string; data?: T };
 export interface ImagePolygonizerInstance {
     importImages(files: FileList): Promise<ImageConfig[]>;
     polygonize(polygonizeImages: ImageConfig[]): Promise<ImageActionPayload<Uint16Array>[]>;
+    serializeImages(images: ImageConfig[]): Promise<Uint8Array>;
+    deserializeImages(data: Uint8Array): Promise<ImageConfig[]>;
 }
 
 type ThreadInputDataByType = {
-    projectImport: { files: File[] };
+    projectImport: Uint8Array;
     projectExport: { projectId: string; format: 'zip' | 'json' };
-    projectSave: { projectId: string; snapshot: ArrayBuffer };
+    projectSave: ImageConfig;
     polygonize: ImageConfig;
     addImages: File;
 };
 
 type ThreadOutputDataByType = {
-    projectImport: { files: File[] };
+    projectImport: ImageConfig;
     projectExport: { projectId: string; format: 'zip' | 'json' };
-    projectSave: { projectId: string; snapshot: ArrayBuffer };
+    projectSave: Uint8Array;
     polygonize: ImageActionPayload<Uint16Array>;
     addImages: ImageConfig;
 };

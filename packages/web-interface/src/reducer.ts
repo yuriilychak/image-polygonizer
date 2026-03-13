@@ -117,6 +117,13 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
             buttonActions,
         };
     },
+    loadingFinish: state => ({ ...state, disabled: false }),
+    importProject: (state, images: ImageConfig[]) => {
+        const buttonActions = getButtonActions(images);
+        const currentImage = images[0] || null;
+
+        return { ...state, images, currentImage, disabled: false, buttonActions };
+    }
 };
 
 export const INITIAL_STATE: ReducerState = {

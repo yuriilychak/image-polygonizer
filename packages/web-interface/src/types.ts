@@ -19,7 +19,9 @@ export type ReducerAction =
   | 'resetAction'
   | 'switchLanguage'
   | 'updatePolygonInfo'
-  | 'toggleSelectAllImages';
+  | 'toggleSelectAllImages'
+  | 'loadingFinish'
+  | 'importProject'
 
 export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
