@@ -144,3 +144,5 @@ export const INITIAL_STATE: ReducerState = {
 
 export const REDUCER = (state: ReducerState, { type, payload }: ReducerEvent) =>
     REDUCER_ACTIONS[type](state, payload);
+
+export const getReducerEvent = (type: ReducerAction, payload?: any): ReducerEvent => ({ type, payload });

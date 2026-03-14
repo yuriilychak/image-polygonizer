@@ -1,10 +1,11 @@
 import { useRef, useReducer, useEffect, useCallback, ChangeEventHandler, MouseEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
-import { INITIAL_STATE, REDUCER } from './reducer';
+import { INITIAL_STATE, REDUCER, getReducerEvent } from './reducer';
+import { loadProject, saveProject } from './helpers';
+import { PROJECT_EXTENSION } from './constants';
 
 import type { ImageConfig } from 'image-polygonizer';
 import type { ButtonActionCallback, ImageActionCallback, SettingChangeCallback } from './types';
-import { loadProject, saveProject } from './helpers';
 
 export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
@@ -26,22 +27,22 @@ export default function usePolygonizer() {
     } = state;
 
     const onActionClick: ButtonActionCallback = useCallback(
-        action => dispatch({ type: 'setAction', payload: action }),
+        action => dispatch(getReducerEvent('setAction', action)),
         []
     );
 
     const onSettingChange: SettingChangeCallback = useCallback(
-        (id, value) => dispatch({ type: 'updateImageConfig', payload: { id, value } }),
+        (id, value) => dispatch(getReducerEvent('updateImageConfig', { id, value })),
         []
     );
 
-    const onCancelFileUpload = useCallback(() => dispatch({ type: 'setEnabled' }), []);
-    const onCancelProjectUpload = useCallback(() => dispatch({ type: 'resetAction' }), []);
+    const onCancelFileUpload = useCallback(() => dispatch(getReducerEvent('setEnabled')), []);
+    const onCancelProjectUpload = useCallback(() => dispatch(getReducerEvent('resetAction')), []);
 
     const onImageAction: ImageActionCallback = useCallback(
         (type, id, data) => {
             if (type !== 'addImages') {
-                dispatch({ type, payload: { id, data } });
+                dispatch(getReducerEvent(type, { id, data }));
                 return;
             }
 
@@ -51,12 +52,12 @@ export default function usePolygonizer() {
 
             if (!hasCancelFileListener) {
                 imageLoaderRef.current.addEventListener('cancel', onCancelFileUpload);
-                dispatch({ type: 'setHasCancelFileListener', payload: true });
+                dispatch(getReducerEvent('setHasCancelFileListener', true));
             }
 
             imageLoaderRef.current.click();
 
-            dispatch({ type: 'setDisabled' });
+            dispatch(getReducerEvent('setDisabled'));
         },
         [onCancelFileUpload, hasCancelFileListener]
     );
@@ -65,17 +66,14 @@ export default function usePolygonizer() {
         const files = target.files;
 
         if (!files) {
-            dispatch({ type: 'setEnabled' });
+            dispatch(getReducerEvent('setEnabled'));
             return;
         }
 
-        const startTime = performance.now();
         const result: ImageConfig[] = await imagePolygonizer.importImages(files);
-        const endTime = performance.now();
-        console.log(`Imported ${files.length} images in ${(endTime - startTime).toFixed(2)} ms`);
 
         if (result.length > 0) {
-            dispatch({ type: 'addImages', payload: result });
+            dispatch(getReducerEvent('addImages', result));
         }
 
         target.value = '';
@@ -87,21 +85,21 @@ export default function usePolygonizer() {
 
 
         if (!file) {
-            dispatch({ type: 'resetAction' });
+            dispatch(getReducerEvent('resetAction'));
             return;
         }
 
         const data = await loadProject(file);
-
         const result = await imagePolygonizer.deserializeImages(data);
+        const payload = { images: result, projectName: file.name.replace(PROJECT_EXTENSION, '') };
 
-        dispatch({ type: 'importProject', payload: { images: result, projectName: file.name.replace('.ipp', '') } });
+        dispatch(getReducerEvent('importProject', payload));
         target.value = '';
     }, [imagePolygonizer]);
 
-    const onSwitchLanguage: MouseEventHandler = useCallback(() => dispatch({ type: 'switchLanguage' }), []);
+    const onSwitchLanguage: MouseEventHandler = useCallback(() => dispatch(getReducerEvent('switchLanguage')), []);
 
-    const onProjectNameChange = useCallback((newName: string) => dispatch({ type: 'projectNameChange', payload: newName }), []);
+    const onProjectNameChange = useCallback((newName: string) => dispatch(getReducerEvent('projectNameChange', newName)), []);
 
     useEffect(() => {
         if (!isInit || currentAction === 'none') {
@@ -112,7 +110,7 @@ export default function usePolygonizer() {
             case 'generate':
                 imagePolygonizer
                     .polygonize(images.filter(img => img.selected))
-                    .then((outputs) => dispatch({ type: 'updatePolygonInfo', payload: outputs }));
+                    .then((outputs) => dispatch(getReducerEvent('updatePolygonInfo', outputs)));
                 break;
             case 'import':
                 if (projectLoaderRef.current) {
@@ -127,7 +125,7 @@ export default function usePolygonizer() {
                     .serializeImages(images)
                     .then((data) => saveProject(projectName, data, saveAnchorRef.current!))
                     .then(() => {
-                        dispatch({ type: 'loadingFinish' });
+                        dispatch(getReducerEvent('loadingFinish'));
                     });
                 break;
             default:
@@ -135,7 +133,7 @@ export default function usePolygonizer() {
     }, [isInit, currentAction, imagePolygonizer, images, onCancelProjectUpload, projectName]);
 
     useEffect(() => {
-        dispatch({ type: 'init' });
+        dispatch(getReducerEvent('init'));
     }, []);
 
     useEffect(() => {

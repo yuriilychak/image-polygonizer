@@ -1,3 +1,5 @@
+import { PROJECT_EXTENSION } from './constants';
+
 import type { ImageConfig } from 'image-polygonizer';
 import type { ButtonAction } from './types';
 
@@ -27,7 +29,7 @@ export async function saveProject(projectName: string, data: Uint8Array, a: HTML
     ).blob();
     const url = URL.createObjectURL(compressed);
     a.href = url;
-    a.download = `${projectName}.ipp`;
+    a.download = `${projectName}${PROJECT_EXTENSION}`;
     a.click();
     URL.revokeObjectURL(url);
 }
