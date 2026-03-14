@@ -83,7 +83,6 @@ const WorkingArea: FC<WorkingAreaProps> = ({ src = null, polygonInfo = DEFAULT_A
     }, [handleResize]);
 
     useEffect(() => {
-        console.log('Redrawing canvas with pattern:', canvasSize, context);
         if (canvasSize.width === 0 || canvasSize.height === 0 || !context) {
             return;
         }

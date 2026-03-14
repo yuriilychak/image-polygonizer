@@ -62,7 +62,7 @@ export default class Parallel {
 
         if (this.#isTerminated) {
             for (let i = 0; i < this.#threadCount; ++i) {
-                this.#threads.push(new Worker('dist/image-polygonizer.calc.js', { type: 'module' }));
+                this.#threads.push(new Worker('dist/image-polygonizer.calc.js'));
             }
 
             this.#isTerminated = false;

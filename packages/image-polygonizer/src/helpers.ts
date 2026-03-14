@@ -2,72 +2,6 @@ import { DEFAULT_CONFIG } from './constants';
 
 import type { ImageConfig } from './types';
 
-export function packAlphaMaskBits(
-    pixels: Uint8Array,
-    width: number,
-    height: number,
-    threshold: number,
-    padding = 0,
-): Uint8Array {
-    const srcPixelCount = width * height;
-
-    if (pixels.length < srcPixelCount * 4) {
-        throw new Error(
-            `pixels length (${pixels.length}) < width*height*4 (${srcPixelCount * 4})`
-        );
-    }
-
-    // padded dims
-    const pw = width + (padding << 1);
-    const ph = height + (padding << 1);
-    const dstPixelCount = pw * ph;
-
-    // 1 bit per pixel in the padded image
-    const out = new Uint8Array((dstPixelCount + 7) >>> 3);
-
-    // padding=0 -> old fast path without extra checks
-    if (padding === 0) {
-        let outIndex = 0;
-        let byte = 0;
-        let bit = 0;
-
-        for (let a = 3, p = 0; p < srcPixelCount; ++p, a += 4) {
-            const filled = pixels[a] >= threshold ? 1 : 0;
-            byte |= filled << bit;
-
-            if (++bit === 8) {
-                out[outIndex++] = byte;
-                byte = 0;
-                bit = 0;
-            }
-        }
-
-        if (bit !== 0) out[outIndex] = byte;
-        return out;
-    }
-
-    // ---- padded packing ----
-    // We write only the "inner" rectangle (padding..padding+width-1, padding..padding+height-1),
-    // and the border remains 0 (out is already zero-initialized).
-
-    for (let y = 0; y < height; y++) {
-        // row in the padded grid
-        const dstRowBase = (y + padding) * pw + padding;
-        // row in the src (RGBA)
-        let a = (y * width * 4) + 3;
-
-        for (let x = 0; x < width; x++, a += 4) {
-            if (pixels[a] >= threshold) {
-                const dstIndex = dstRowBase + x;      // 0..dstPixelCount-1
-                out[dstIndex >>> 3] |= 1 << (dstIndex & 7); // LSB-first
-            }
-        }
-    }
-
-    return out;
-}
-
-
 export const fileToImageConfig = async (file: File): Promise<ImageConfig> => ({
     label: file.name.replace(/\.[^/.]+$/, ''),
     type: file.type.replace('image/', ''),
@@ -184,12 +118,6 @@ export function polygonSignedArea(contour: Uint16Array): number {
     return sum * 0.5;
 }
 
-export function clampUint16(v: number): number {
-    if (v < 0) return 0;
-    if (v > 65535) return 65535;
-    return v;
-}
-
 export function orientRaw(
     ax: number,
     ay: number,
@@ -288,49 +216,6 @@ export function segmentsIntersect(
     return false;
 }
 
-/* =========================================================
- * Linked contour state (shared between relaxation / point-limit)
- * ========================================================= */
-
-export interface LinkedContourState {
-    points: Uint16Array;
-    prev: Int32Array;
-    next: Int32Array;
-    alive: Uint8Array;
-    activeCount: number;
-}
-
-export function createLinkedState(points: Uint16Array): LinkedContourState {
-    const pointCount = points.length >> 1;
-    const prev = new Int32Array(pointCount);
-    const next = new Int32Array(pointCount);
-    const alive = new Uint8Array(pointCount);
-
-    for (let i = 0; i < pointCount; ++i) {
-        prev[i] = i === 0 ? pointCount - 1 : i - 1;
-        next[i] = i === pointCount - 1 ? 0 : i + 1;
-        alive[i] = 1;
-    }
-
-    return {
-        points,
-        prev,
-        next,
-        alive,
-        activeCount: pointCount,
-    };
-}
-
-export function removeVertex(state: LinkedContourState, index: number): void {
-    const p = state.prev[index];
-    const n = state.next[index];
-
-    state.next[p] = n;
-    state.prev[n] = p;
-    state.alive[index] = 0;
-    --state.activeCount;
-}
-
 export function findFirstAlive(alive: Uint8Array): number {
     for (let i = 0; i < alive.length; ++i) {
         if (alive[i] !== 0) {
@@ -339,116 +224,6 @@ export function findFirstAlive(alive: Uint8Array): number {
     }
 
     return -1;
-}
-
-export function materializeState(state: LinkedContourState): Uint16Array {
-    const out = new Uint16Array(state.activeCount << 1);
-
-    const start = findFirstAlive(state.alive);
-
-    if (start < 0) {
-        return out;
-    }
-
-    let current = start;
-    let w = 0;
-
-    do {
-        out[w] = getX(state.points, current);
-        out[w + 1] = getY(state.points, current);
-        w += 2;
-        current = state.next[current];
-    } while (current !== start);
-
-    return out;
-}
-
-export function wouldCreateSelfIntersectionAfterRemoval(
-    state: LinkedContourState,
-    curr: number,
-): boolean {
-    if (state.activeCount <= 3) {
-        return false;
-    }
-
-    const prev = state.prev[curr];
-    const next = state.next[curr];
-
-    const ax = getX(state.points, prev);
-    const ay = getY(state.points, prev);
-    const bx = getX(state.points, next);
-    const by = getY(state.points, next);
-
-    const start = findFirstAlive(state.alive);
-
-    if (start < 0) {
-        return false;
-    }
-
-    let e0 = start;
-
-    do {
-        const e1 = state.next[e0];
-
-        if (
-            e0 === prev ||
-            e1 === prev ||
-            e0 === curr ||
-            e1 === curr ||
-            e0 === next ||
-            e1 === next
-        ) {
-            e0 = state.next[e0];
-            continue;
-        }
-
-        const c0x = getX(state.points, e0);
-        const c0y = getY(state.points, e0);
-        const c1x = getX(state.points, e1);
-        const c1y = getY(state.points, e1);
-
-        if (segmentsIntersect(ax, ay, bx, by, c0x, c0y, c1x, c1y)) {
-            return true;
-        }
-
-        e0 = state.next[e0];
-    } while (e0 !== start);
-
-    return false;
-}
-
-export function cross2(
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    cx: number,
-    cy: number,
-): number {
-    return (bx - ax) * (cy - by) - (by - ay) * (cx - bx);
-}
-
-export function polygonSignedAreaByState(state: LinkedContourState): number {
-    const start = findFirstAlive(state.alive);
-
-    if (start < 0) {
-        return 0;
-    }
-
-    let sum = 0;
-    let i = start;
-
-    do {
-        const j = state.next[i];
-
-        sum +=
-            getX(state.points, i) * getY(state.points, j) -
-            getX(state.points, j) * getY(state.points, i);
-
-        i = j;
-    } while (i !== start);
-
-    return sum * 0.5;
 }
 
 /* =========================================================

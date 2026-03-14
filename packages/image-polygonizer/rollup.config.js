@@ -25,7 +25,7 @@ export default [
         input: 'src/image-poligonizer.worker.ts',
         output: {
             file: '../web-interface/public/dist/image-polygonizer.calc.js',
-            format: 'esm',
+            format: 'iife',
             sourcemap: true,
         },
         plugins: [
