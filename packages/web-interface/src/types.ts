@@ -22,6 +22,7 @@ export type ReducerAction =
   | 'toggleSelectAllImages'
   | 'loadingFinish'
   | 'importProject'
+  | 'projectNameChange'
 
 export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
@@ -34,6 +35,7 @@ export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
 
 export type ReducerState = {
+  projectName: string;
   languageIndex: number;
   isInit: boolean;
   currentAction: ButtonAction;

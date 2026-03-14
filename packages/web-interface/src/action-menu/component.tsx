@@ -15,9 +15,11 @@ import type {
 } from '../types';
 
 import './component.css';
+import { ProjectName } from './project-name';
 
 type ActionMenuProps = {
     images: ImageConfig[];
+    projectName: string;
     currentLanguage: LanguageKey;
     currentImage: ImageConfig | null;
     imageLoaderRef: RefObject<HTMLInputElement>;
@@ -29,6 +31,7 @@ type ActionMenuProps = {
     onImageAction: ImageActionCallback;
     onImageUpload: ChangeEventHandler<HTMLInputElement>;
     onProjectUpload: ChangeEventHandler<HTMLInputElement>;
+    onProjectNameChange(newName: string): void;
     onSwitchLanguage: MouseEventHandler;
     disabled: boolean;
     t: TFunction;
@@ -36,6 +39,7 @@ type ActionMenuProps = {
 
 const ActionMenu: FC<ActionMenuProps> = ({
     t,
+    projectName,
     currentImage,
     currentLanguage,
     disabled,
@@ -50,6 +54,7 @@ const ActionMenu: FC<ActionMenuProps> = ({
     onImageUpload,
     onProjectUpload,
     onSwitchLanguage,
+    onProjectNameChange,
 }) => (
     <div className="action-menu">
         <div className="action-menu-header">
@@ -62,6 +67,7 @@ const ActionMenu: FC<ActionMenuProps> = ({
                 {currentLanguage}
             </button>
         </div>
+        <ProjectName name={projectName} t={t} disabled={disabled} onProjectNameChange={onProjectNameChange} />
         <ImageList
             t={t}
             images={images}

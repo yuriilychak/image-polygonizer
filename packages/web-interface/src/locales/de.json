@@ -1,4 +1,5 @@
 {
+    "project_name_label": "Name",
     "action_menu_title": "Bild-Polygonisierer",
     "menu_section_label_image_list": "Bilder",
     "menu_section_label_actions": "Aktionen",
@@ -6,7 +7,7 @@
     "menu_action_title_addImages": "Neues Bild hinzufügen",
     "menu_action_title_removeImage": "Bild entfernen",
     "menu_action_title_renameImage": "Name ändern",
-    "menu_action_title_openEditMode": "Bild umbenennen",
+    "menu_action_title_openEditMode": "Umbenennen",
     "menu_action_title_closeEditMode": "Bearbeitungsmodus schließen",
     "menu_action_title_polygonsMissing": "Für dieses Bild wurden keine Polygone generiert",
     "menu_action_title_polygonsOutdated": "Polygone sind veraltet, bitte regenerieren",

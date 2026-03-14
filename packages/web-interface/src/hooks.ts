@@ -4,6 +4,7 @@ import { INITIAL_STATE, REDUCER } from './reducer';
 
 import type { ImageConfig } from 'image-polygonizer';
 import type { ButtonActionCallback, ImageActionCallback, SettingChangeCallback } from './types';
+import { loadProject, saveProject } from './helpers';
 
 export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
@@ -14,6 +15,7 @@ export default function usePolygonizer() {
     const {
         isInit,
         images,
+        projectName,
         currentImage,
         currentAction,
         currentLanguage,
@@ -82,19 +84,24 @@ export default function usePolygonizer() {
     const onProjectUpload: ChangeEventHandler<HTMLInputElement> = useCallback(async ({ target }) => {
         const file = target.files?.[0];
 
+
+
         if (!file) {
             dispatch({ type: 'resetAction' });
             return;
         }
 
-        const buffer = await file.arrayBuffer();
-        const result = await imagePolygonizer.deserializeImages(new Uint8Array(buffer));
+        const data = await loadProject(file);
 
-        dispatch({ type: 'importProject', payload: result });
+        const result = await imagePolygonizer.deserializeImages(data);
+
+        dispatch({ type: 'importProject', payload: { images: result, projectName: file.name.replace('.ipp', '') } });
         target.value = '';
     }, [imagePolygonizer]);
 
     const onSwitchLanguage: MouseEventHandler = useCallback(() => dispatch({ type: 'switchLanguage' }), []);
+
+    const onProjectNameChange = useCallback((newName: string) => dispatch({ type: 'projectNameChange', payload: newName }), []);
 
     useEffect(() => {
         if (!isInit || currentAction === 'none') {
@@ -118,20 +125,14 @@ export default function usePolygonizer() {
             case 'save':
                 imagePolygonizer
                     .serializeImages(images)
-                    .then((data) => {
-                        const blob = new Blob([data.slice().buffer], { type: 'application/octet-stream' });
-                        const url = URL.createObjectURL(blob);
-                        const a = saveAnchorRef.current!;
-                        a.href = url;
-                        a.download = 'ImagePolygonizeProject.ipp';
-                        a.click();
-                        URL.revokeObjectURL(url);
+                    .then((data) => saveProject(projectName, data, saveAnchorRef.current!))
+                    .then(() => {
                         dispatch({ type: 'loadingFinish' });
                     });
                 break;
             default:
         }
-    }, [isInit, currentAction, imagePolygonizer, images, onCancelProjectUpload]);
+    }, [isInit, currentAction, imagePolygonizer, images, onCancelProjectUpload, projectName]);
 
     useEffect(() => {
         dispatch({ type: 'init' });
@@ -152,6 +153,7 @@ export default function usePolygonizer() {
     return {
         t,
         images,
+        projectName,
         imageLoaderRef,
         projectLoaderRef,
         saveAnchorRef,
@@ -165,5 +167,6 @@ export default function usePolygonizer() {
         onImageAction,
         onImageUpload,
         onSwitchLanguage,
+        onProjectNameChange,
     };
 }

@@ -20,3 +20,22 @@ export function getButtonActions(images: ImageConfig[]): ButtonAction[] {
 
     return result;
 }
+
+export async function saveProject(projectName: string, data: Uint8Array, a: HTMLAnchorElement): Promise<void> {
+    const compressed = await new Response(
+        new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream('gzip')),
+    ).blob();
+    const url = URL.createObjectURL(compressed);
+    a.href = url;
+    a.download = `${projectName}.ipp`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+export async function loadProject(file: File): Promise<Uint8Array> {
+    const decompressed = await new Response(
+        file.stream().pipeThrough(new DecompressionStream('gzip')),
+    ).arrayBuffer();
+
+    return new Uint8Array(decompressed);
+}

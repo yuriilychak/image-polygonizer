@@ -118,15 +118,18 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
         };
     },
     loadingFinish: state => ({ ...state, disabled: false }),
-    importProject: (state, images: ImageConfig[]) => {
+    importProject: (state, payload: { images: ImageConfig[], projectName: string }) => {
+        const { images } = payload;
         const buttonActions = getButtonActions(images);
         const currentImage = images[0] || null;
 
-        return { ...state, images, currentImage, disabled: false, buttonActions };
-    }
+        return { ...state, ...payload, currentImage, disabled: false, buttonActions };
+    },
+    projectNameChange: (state, projectName: string) => ({ ...state, projectName }),
 };
 
 export const INITIAL_STATE: ReducerState = {
+    projectName: "New Project",
     languageIndex: 0,
     isInit: false,
     imagePolygonizer: new ImagePolygonizer(),

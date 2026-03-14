@@ -1,4 +1,5 @@
 {
+    "project_name_label": "Nombre",
     "action_menu_title": "Poligonizador de Imágenes",
     "menu_section_label_image_list": "Imágenes",
     "menu_section_label_actions": "Acciones",
@@ -6,7 +7,7 @@
     "menu_action_title_addImages": "Agregar nueva imagen",
     "menu_action_title_removeImage": "Eliminar imagen",
     "menu_action_title_renameImage": "Cambiar nombre",
-    "menu_action_title_openEditMode": "Renombrar imagen",
+    "menu_action_title_openEditMode": "Renombrar",
     "menu_action_title_closeEditMode": "Cerrar modo de edición",
     "menu_action_title_polygonsMissing": "No se generaron polígonos para esta imagen",
     "menu_action_title_polygonsOutdated": "Los polígonos están desactualizados, por favor regenera",

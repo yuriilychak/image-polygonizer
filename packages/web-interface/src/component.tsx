@@ -15,6 +15,7 @@ const App: FC = () => {
         disabled,
         buttonActions,
         imageLoaderRef,
+        projectName,
         projectLoaderRef,
         saveAnchorRef,
         onActionClick,
@@ -23,12 +24,14 @@ const App: FC = () => {
         onImageUpload,
         onProjectUpload,
         onSwitchLanguage,
+        onProjectNameChange,
     } = usePolygonizer();
 
     return (
         <div className="app-container">
             <ActionMenu
                 t={t}
+                projectName={projectName}
                 images={images}
                 currentImage={currentImage}
                 currentLanguage={currentLanguage}
@@ -40,6 +43,7 @@ const App: FC = () => {
                 onSettingChange={onSettingChange}
                 onImageUpload={onImageUpload}
                 onProjectUpload={onProjectUpload}
+                onProjectNameChange={onProjectNameChange}
                 imageLoaderRef={imageLoaderRef}
                 projectLoaderRef={projectLoaderRef}
                 saveAnchorRef={saveAnchorRef}

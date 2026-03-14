@@ -1,4 +1,5 @@
 {
+    "project_name_label": "Name",
     "action_menu_title": "Image Polygonizer",
     "menu_section_label_image_list": "Images",
     "menu_section_label_actions": "Actions",
@@ -6,7 +7,7 @@
     "menu_action_title_addImages": "Add new image",
     "menu_action_title_removeImage": "Remove image",
     "menu_action_title_renameImage": "Change name",
-    "menu_action_title_openEditMode": "Rename image",
+    "menu_action_title_openEditMode": "Rename",
     "menu_action_title_closeEditMode": "Close edit mode",
     "menu_action_title_polygonsMissing": "No polygons generated for this image",
     "menu_action_title_polygonsOutdated": "Polygons are outdated, please regenerate",
