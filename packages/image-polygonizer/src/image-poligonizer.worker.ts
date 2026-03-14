@@ -1,17 +1,23 @@
+import WasmWrapper from "./wasm-wrapper";
 import { fileToImageConfig, imageBitmapToRgbaPixels } from "./helpers";
 import { ImageConfigSerialization } from "./image-config-serialization";
 
 import type { ImageConfig, ThreadInput, ThreadOutput } from "./types";
 
-declare const wasm_bindgen: any;
-(self as any).importScripts('./image-poligonizer.algo.js');
-const wasmReady = wasm_bindgen('./image-poligonizer.algo_bg.wasm');
+const wasm = new WasmWrapper();
+let resolveWasmReady!: () => void;
+const wasmReady = new Promise<void>(resolve => { resolveWasmReady = resolve; });
 
 self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
     let message: ThreadOutput<any>;
     const transferrable: Transferable[] = [];
 
     switch (data.type) {
+        case 'init':
+            await wasm.initBuffer(data.data as ArrayBuffer);
+            resolveWasmReady();
+            message = undefined;
+            break;
         case 'addImages':
             message = await fileToImageConfig(data.data as File);
             transferrable.push(message.src);
@@ -33,10 +39,10 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
             await wasmReady;
             const { id, src, config } = data.data as ImageConfig;
             const pixels = await imageBitmapToRgbaPixels(src);
-            const polygonData = wasm_bindgen.polygonize(
+            const polygonData = wasm.polygonize(
                 pixels, src.width, src.height,
                 config.alphaThreshold, config.minimalDistance, config.maxPointCount
-            ) as Uint16Array;
+            );
             message = { id, data: polygonData };
             transferrable.push(polygonData.buffer);
             break;

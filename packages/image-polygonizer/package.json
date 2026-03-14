@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "mkdir -p ../web-interface/public/dist && rollup -c && cp ../image-polygonizer-algo/dist/image-poligonizer.algo.js ../image-polygonizer-algo/dist/image-poligonizer.algo_bg.wasm ../web-interface/public/dist/",
+    "build": "mkdir -p ../web-interface/public/dist && rollup -c && cp ../image-polygonizer-algo/dist/image-polygonizer.wasm ../web-interface/public/dist/",
     "dev": "rollup -c -w",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "docs": "typedoc",

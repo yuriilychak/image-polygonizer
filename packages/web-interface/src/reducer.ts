@@ -13,7 +13,11 @@ import type {
 } from './types';
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
-    init: state => ({ ...state, isInit: true }),
+    init: state => {
+        state.imagePolygonizer.init();
+
+        return { ...state, isInit: true };
+    },
     addImages: (state, newImages: ImageConfig[]) => {
         const images = state.images.concat(newImages);
         const buttonActions = getButtonActions(images);
@@ -60,12 +64,12 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
         return { ...state, images, buttonActions };
     },
-    toggleSelectAllImages: (state) => {
+    toggleSelectAllImages: state => {
         const isAllImagesSelected = state.images.every(img => img.selected);
         const images = state.images.map(img => ({ ...img, selected: !isAllImagesSelected }));
         const buttonActions = getButtonActions(images);
 
-        return { ...state, images, buttonActions };      
+        return { ...state, images, buttonActions };
     },
     setDisabled: state => ({ ...state, disabled: true }),
     setEnabled: state => ({ ...state, disabled: false }),
@@ -118,7 +122,7 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
         };
     },
     loadingFinish: state => ({ ...state, disabled: false }),
-    importProject: (state, payload: { images: ImageConfig[], projectName: string }) => {
+    importProject: (state, payload: { images: ImageConfig[]; projectName: string }) => {
         const { images } = payload;
         const buttonActions = getButtonActions(images);
         const currentImage = images[0] || null;
@@ -129,7 +133,7 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 };
 
 export const INITIAL_STATE: ReducerState = {
-    projectName: "New Project",
+    projectName: 'New Project',
     languageIndex: 0,
     isInit: false,
     imagePolygonizer: new ImagePolygonizer(),
@@ -145,4 +149,7 @@ export const INITIAL_STATE: ReducerState = {
 export const REDUCER = (state: ReducerState, { type, payload }: ReducerEvent) =>
     REDUCER_ACTIONS[type](state, payload);
 
-export const getReducerEvent = (type: ReducerAction, payload?: any): ReducerEvent => ({ type, payload });
+export const getReducerEvent = (type: ReducerAction, payload?: any): ReducerEvent => ({
+    type,
+    payload,
+});

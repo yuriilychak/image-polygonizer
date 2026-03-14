@@ -9,6 +9,18 @@ export default class ImagePolygonizer implements ImagePolygonizerInstance {
         this.#parallel = new Parallel();
     }
 
+    async init(): Promise<void> {
+        const buffer = await fetch('dist/image-polygonizer.wasm').then(r => r.arrayBuffer());
+        const count = this.#parallel.threadCount;
+        const inputs: ThreadInput<'init'>[] = Array.from({ length: count }, () => {
+            const clone = buffer.slice(0);
+            return { type: 'init', data: clone, transfetrable: [clone] };
+        });
+        return new Promise((resolve, reject) =>
+            this.#parallel.start(inputs, () => resolve(), reject)
+        );
+    }
+
     async importImages(files: FileList): Promise<ImageConfig[]> {
         const threadInput: ThreadInput<'addImages'>[] = [];
         let data: File;

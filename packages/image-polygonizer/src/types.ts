@@ -3,6 +3,7 @@ export type ImageConfigKey = 'maxPointCount' | 'alphaThreshold' | 'minimalDistan
 export type ImageSetting = Record<ImageConfigKey, number>;
 
 export type ThreadType =
+    | 'init'
     | 'projectImport'
     | 'projectExport'
     | 'projectSave'
@@ -27,6 +28,7 @@ export interface ImageConfig extends ImageMetadata {
 export type ImageActionPayload<T = any> = { id: string; data?: T };
 
 export interface ImagePolygonizerInstance {
+    init(): Promise<void>;
     importImages(files: FileList): Promise<ImageConfig[]>;
     polygonize(polygonizeImages: ImageConfig[]): Promise<ImageActionPayload<Uint16Array>[]>;
     serializeImages(images: ImageConfig[]): Promise<Uint8Array>;
@@ -34,6 +36,7 @@ export interface ImagePolygonizerInstance {
 }
 
 type ThreadInputDataByType = {
+    init: ArrayBuffer;
     projectImport: Uint8Array;
     projectExport: { projectId: string; format: 'zip' | 'json' };
     projectSave: ImageConfig;
@@ -42,6 +45,7 @@ type ThreadInputDataByType = {
 };
 
 type ThreadOutputDataByType = {
+    init: undefined;
     projectImport: ImageConfig;
     projectExport: { projectId: string; format: 'zip' | 'json' };
     projectSave: Uint8Array;

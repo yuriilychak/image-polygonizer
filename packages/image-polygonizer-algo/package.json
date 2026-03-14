@@ -2,14 +2,14 @@
   "name": "image-polygonizer-algo",
   "version": "0.0.1",
   "description": "WebAssembly algorithms for image polygonization",
-  "main": "./dist/image-poligonizer.algo.js",
-  "types": "./dist/image-poligonizer.algo.d.ts",
+  "main": "./dist/image-polygonizer.wasm",
+  "types": "",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "wasm-pack build --target no-modules --out-dir dist --out-name image-poligonizer && cd dist && mv image-poligonizer_bg.wasm image-poligonizer.algo_bg.wasm && sed -i 's/image-poligonizer_bg/image-poligonizer.algo_bg/g' image-poligonizer.js && mv image-poligonizer.js image-poligonizer.algo.js && mv image-poligonizer.d.ts image-poligonizer.algo.d.ts",
-    "dev": "wasm-pack build --dev --target no-modules --out-dir dist --out-name image-poligonizer && cd dist && mv image-poligonizer_bg.wasm image-poligonizer.algo_bg.wasm && sed -i 's/image-poligonizer_bg/image-poligonizer.algo_bg/g' image-poligonizer.js && mv image-poligonizer.js image-poligonizer.algo.js && mv image-poligonizer.d.ts image-poligonizer.algo.d.ts",
+    "build": "bash build.sh",
+    "dev": "bash build.sh dev",
     "clean": "rm -rf dist target"
   },
   "keywords": [
