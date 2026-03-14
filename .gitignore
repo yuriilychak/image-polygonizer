@@ -5,6 +5,7 @@ coverage/
 .history/
 .turbo/
 *.log
+.vscode
 .DS_Store
 .env.local
 .env.development.local
