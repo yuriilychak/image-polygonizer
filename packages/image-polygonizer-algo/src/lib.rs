@@ -99,7 +99,6 @@ fn orient_triangle_like_polygon(
 ///
 /// Layout: LSB-first, row-major, with an optional zero-padded border of `offset`
 /// pixels on all four sides. Pixels whose alpha >= threshold are set to 1.
-#[wasm_bindgen]
 pub fn pack_alpha_mask_bits(
     pixels: &[u8],
     width: u16,
@@ -222,7 +221,6 @@ fn pack_scalar(pixels: &[u8], width: u16, height: u16, threshold: u8, offset: u8
 /// Dilate a 1-bit-per-pixel LSB-first bitmask by a circular kernel of radius
 /// `outline_size` pixels.  Every pixel within Euclidean distance `outline_size`
 /// of any set pixel in the source will be set in the result.
-#[wasm_bindgen]
 pub fn extend_bit_mask(mask: &[u8], width: u16, height: u16, outline_size: u8) -> Vec<u8> {
     let w = width as i32;
     let h = height as i32;
@@ -531,7 +529,6 @@ fn pack_contours(contours: &[Vec<u16>]) -> Vec<u8> {
 ///   [4 bytes]   contour count N (u32 LE)
 ///   [4×N bytes] u16-element count of each contour (u32 LE)
 ///   [...]       contour data: interleaved u16 LE (x, y) pairs (padding already subtracted)
-#[wasm_bindgen]
 pub fn extract_all_outer_contours(
     input_bits: &[u8],
     width: u16,
@@ -596,7 +593,6 @@ pub fn extract_all_outer_contours(
 ///
 /// `contour` is a flat [x0,y0,...] u16 array, `min_distance` is the RDP epsilon,
 /// `max_point_count` is the max vertex count for the output polygon.
-#[wasm_bindgen]
 pub fn contour_to_polygon(contour: &[u16], min_distance: f64, max_point_count: u16) -> Vec<u16> {
     // ── step 1: RDP simplification ────────────────────────────────────────────
     let step1 = rdp_simplify_no_self_intersections(contour, min_distance);
@@ -1920,7 +1916,6 @@ fn refine_by_sliding_edges(original: &[u16], cover: &[u16]) -> Vec<u16> {
 ///   2. Advanced 3-criterion flip (port of `optimizeTrianglesByEdgeFlipRepeated` in triangle-retopology.ts)
 ///
 /// Returns flat Uint16Array of triangle vertex indices [a0,b0,c0, ...].
-#[wasm_bindgen]
 pub fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
     // ── normalise: remove duplicate closing vertex ────────────────────────────
     let raw_n = polygon.len() / 2;
