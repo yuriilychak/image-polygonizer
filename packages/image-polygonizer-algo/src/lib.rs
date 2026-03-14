@@ -1914,11 +1914,14 @@ fn refine_by_sliding_edges(original: &[u16], cover: &[u16]) -> Vec<u16> {
 
 // ── triangulate_polygon ───────────────────────────────────────────────────────
 
-/// Triangulate a simple polygon (as a flat [x0,y0,x1,y1,...] Uint16Array) using
-/// ear-clipping, then optimise the mesh with edge flips (Delaunay-like).
+/// Triangulate a simple polygon (flat [x0,y0,...] Uint16Array) using ear-clipping
+/// (port of `triangulateSimplePolygonAvoidSlivers`), then run two edge-flip passes:
+///   1. Basic Lawson flip  (port of `optimizeTrianglesByEdgeFlip` in triangulate.ts)
+///   2. Advanced 3-criterion flip (port of `optimizeTrianglesByEdgeFlipRepeated` in triangle-retopology.ts)
 ///
-/// Returns a flat Uint16Array of triangle vertex indices [a0,b0,c0, a1,b1,c1, ...].
-fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
+/// Returns flat Uint16Array of triangle vertex indices [a0,b0,c0, ...].
+#[wasm_bindgen]
+pub fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
     // ── normalise: remove duplicate closing vertex ────────────────────────────
     let raw_n = polygon.len() / 2;
     let pts: &[u16] = if raw_n > 1
@@ -2022,8 +2025,13 @@ fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
         }
     }
 
-    // ── edge-flip optimisation ────────────────────────────────────────────────
-    flip_edges(pts, &mut tris);
+    // ── phase 1: basic Lawson flip ────────────────────────────────────────────
+    // port of `optimizeTrianglesByEdgeFlip` in triangulate.ts
+    flip_edges_basic(pts, poly_sign, &mut tris);
+
+    // ── phase 2: advanced 3-criterion flip ───────────────────────────────────
+    // port of `optimizeTrianglesByEdgeFlipRepeated` in triangle-retopology.ts
+    flip_edges_advanced(pts, poly_sign, &mut tris, 10);
 
     tris.iter().map(|&v| v as u16).collect()
 }
@@ -2060,13 +2068,11 @@ fn is_ear(
     if !is_convex(pts, a, b, c, poly_sign) {
         return false;
     }
-
     let (ax, ay) = (gx(pts, a), gy(pts, a));
     let (bx, by) = (gx(pts, b), gy(pts, b));
     let (cx, cy) = (gx(pts, c), gy(pts, c));
     let (min_x, max_x) = (ax.min(bx).min(cx), ax.max(bx).max(cx));
     let (min_y, max_y) = (ay.min(by).min(cy), ay.max(by).max(cy));
-
     for (p, &al) in alive.iter().enumerate() {
         if !al || p == a || p == b || p == c {
             continue;
@@ -2099,116 +2105,50 @@ fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f64 {
 
 // ── edge-flip helpers ─────────────────────────────────────────────────────────
 
-/// After ear-clipping, repeatedly swap diagonal edges to reduce large angles.
-///
-/// For each pair of adjacent triangles:
-///   - Find the two shared vertices (the current diagonal) and the two opposite vertices.
-///   - A flip is VALID iff the two opposite vertices lie on strictly opposite sides
-///     of the new diagonal (standard convex-quad test, order-independent).
-///   - A flip is BENEFICIAL iff it reduces the worst angle in the pair;
-/// Direct port of TypeScript `optimizeTrianglesByEdgeFlip`.
-/// Iterates in edge-insertion order (matches JS Map iteration), uses the
-/// Lawson criterion: flip when the minimum of minimum angles improves.
-fn flip_edges(pts: &[u16], tris: &mut Vec<usize>) {
-    if tris.len() < 6 {
-        return;
+/// Build an edge list in insertion order (mirrors JS Map insertion order).
+/// Each entry: (u, v, first_tri_base_idx, second_tri_base_idx).
+/// u = min(vertex), v = max(vertex). Second slot is usize::MAX if boundary.
+fn build_edge_list(tris: &[usize]) -> Vec<(usize, usize, usize, usize)> {
+    let nt = tris.len() / 3;
+    let mut edges: Vec<(usize, usize, usize, usize)> = Vec::new();
+    for i in 0..nt {
+        let ia = i * 3;
+        let verts = [tris[ia], tris[ia + 1], tris[ia + 2]];
+        for k in 0..3 {
+            let (eu, ev) = (verts[k], verts[(k + 1) % 3]);
+            let (u, v) = if eu < ev { (eu, ev) } else { (ev, eu) };
+            let mut found = false;
+            for e in edges.iter_mut() {
+                if e.0 == u && e.1 == v {
+                    e.3 = ia;
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                edges.push((u, v, ia, usize::MAX));
+            }
+        }
     }
-    let poly_sign = if polygon_signed_area(pts) >= 0.0 {
-        1.0_f64
+    edges
+}
+
+/// Return the vertex in triangle at base index `ia` that is neither `u` nor `v`.
+/// Returns usize::MAX if not found (degenerate triangle).
+fn third_vertex(tris: &[usize], ia: usize, u: usize, v: usize) -> usize {
+    let (a, b, c) = (tris[ia], tris[ia + 1], tris[ia + 2]);
+    if a != u && a != v {
+        a
+    } else if b != u && b != v {
+        b
+    } else if c != u && c != v {
+        c
     } else {
-        -1.0_f64
-    };
-
-    let mut changed = true;
-    let mut guard = 0u32;
-
-    while changed && guard < 1000 {
-        changed = false;
-        guard += 1;
-
-        let nt = tris.len() / 3;
-
-        // Build edge list in insertion order: (u, v, tri1_base, tri2_base).
-        // u = min vertex index, v = max vertex index.
-        let mut edges: Vec<(usize, usize, usize, usize)> = Vec::new();
-        for i in 0..nt {
-            let ia = i * 3;
-            let verts = [tris[ia], tris[ia + 1], tris[ia + 2]];
-            for k in 0..3 {
-                let (eu, ev) = (verts[k], verts[(k + 1) % 3]);
-                let (u, v) = if eu < ev { (eu, ev) } else { (ev, eu) };
-                let mut found = false;
-                for e in edges.iter_mut() {
-                    if e.0 == u && e.1 == v {
-                        e.3 = ia; // second triangle
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    edges.push((u, v, ia, usize::MAX));
-                }
-            }
-        }
-
-        'edge_loop: for &(eu, ev, ia, ib) in &edges {
-            if ib == usize::MAX {
-                continue; // boundary edge
-            }
-
-            let (a0, a1, a2) = (tris[ia], tris[ia + 1], tris[ia + 2]);
-            let (b0, b1, b2) = (tris[ib], tris[ib + 1], tris[ib + 2]);
-
-            let w1 = if a0 != eu && a0 != ev {
-                a0
-            } else if a1 != eu && a1 != ev {
-                a1
-            } else {
-                a2
-            };
-            let w2 = if b0 != eu && b0 != ev {
-                b0
-            } else if b1 != eu && b1 != ev {
-                b1
-            } else {
-                b2
-            };
-
-            if w1 == w2 {
-                continue;
-            }
-
-            // Validity: the quad (w1, eu, w2, ev) must be convex with all
-            // turns in the same direction as the polygon winding.
-            if !is_convex_quad(pts, poly_sign, w1, eu, w2, ev) {
-                continue;
-            }
-
-            // Lawson criterion: flip improves the worst minimum angle.
-            let score_before =
-                triangle_min_angle(pts, eu, ev, w1).min(triangle_min_angle(pts, eu, ev, w2));
-            let score_after =
-                triangle_min_angle(pts, w1, w2, eu).min(triangle_min_angle(pts, w1, w2, ev));
-
-            if score_after <= score_before {
-                continue;
-            }
-
-            let (f1a, f1b, f1c) = orient_triangle_like_polygon(pts, poly_sign, w1, w2, eu);
-            let (f2a, f2b, f2c) = orient_triangle_like_polygon(pts, poly_sign, w2, w1, ev);
-            tris[ia] = f1a;
-            tris[ia + 1] = f1b;
-            tris[ia + 2] = f1c;
-            tris[ib] = f2a;
-            tris[ib + 1] = f2b;
-            tris[ib + 2] = f2c;
-
-            changed = true;
-            break 'edge_loop;
-        }
+        usize::MAX
     }
 }
 
+/// Quad with all 4 consecutive turns matching `poly_sign` (strictly convex).
 fn is_convex_quad(pts: &[u16], poly_sign: f64, a: usize, b: usize, c: usize, d: usize) -> bool {
     let o1 = orient_raw(
         gx(pts, a),
@@ -2246,6 +2186,138 @@ fn is_convex_quad(pts: &[u16], poly_sign: f64, a: usize, b: usize, c: usize, d: 
         o1 > 0.0 && o2 > 0.0 && o3 > 0.0 && o4 > 0.0
     } else {
         o1 < 0.0 && o2 < 0.0 && o3 < 0.0 && o4 < 0.0
+    }
+}
+
+/// min and max angles across both triangles of a quad diagonal (u,v | w1,w2).
+fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f64, f64) {
+    let min1 = triangle_min_angle(pts, u, v, w1);
+    let max1 = triangle_max_angle(pts, u, v, w1);
+    let min2 = triangle_min_angle(pts, v, u, w2);
+    let max2 = triangle_max_angle(pts, v, u, w2);
+    (min1.min(min2), max1.max(max2))
+}
+
+fn diag_len_sq(pts: &[u16], a: usize, b: usize) -> f64 {
+    let dx = gx(pts, a) - gx(pts, b);
+    let dy = gy(pts, a) - gy(pts, b);
+    dx * dx + dy * dy
+}
+
+// ── Phase 1: basic Lawson flip ────────────────────────────────────────────────
+//
+// Port of `optimizeTrianglesByEdgeFlip` in triangulate.ts.
+// Criterion: flip when min(minAngle of both triangles) improves.
+fn flip_edges_basic(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>) {
+    if tris.len() < 6 {
+        return;
+    }
+    let mut changed = true;
+    let mut guard = 0u32;
+    while changed && guard < 1000 {
+        changed = false;
+        guard += 1;
+        let edges = build_edge_list(tris);
+        'el: for &(eu, ev, ia, ib) in &edges {
+            if ib == usize::MAX {
+                continue;
+            }
+            let w1 = third_vertex(tris, ia, eu, ev);
+            let w2 = third_vertex(tris, ib, eu, ev);
+            if w1 == usize::MAX || w2 == usize::MAX || w1 == w2 {
+                continue;
+            }
+            if !is_convex_quad(pts, poly_sign, w1, eu, w2, ev) {
+                continue;
+            }
+            let score_before =
+                triangle_min_angle(pts, eu, ev, w1).min(triangle_min_angle(pts, ev, eu, w2));
+            let score_after =
+                triangle_min_angle(pts, w1, w2, eu).min(triangle_min_angle(pts, w2, w1, ev));
+            if score_after <= score_before {
+                continue;
+            }
+            let (f1a, f1b, f1c) = orient_triangle_like_polygon(pts, poly_sign, w1, w2, eu);
+            let (f2a, f2b, f2c) = orient_triangle_like_polygon(pts, poly_sign, w2, w1, ev);
+            tris[ia] = f1a;
+            tris[ia + 1] = f1b;
+            tris[ia + 2] = f1c;
+            tris[ib] = f2a;
+            tris[ib + 1] = f2b;
+            tris[ib + 2] = f2c;
+            changed = true;
+            break 'el;
+        }
+    }
+}
+
+// ── Phase 2: advanced 3-criterion flip ───────────────────────────────────────
+//
+// Port of `optimizeTrianglesByEdgeFlipRepeated` in triangle-retopology.ts.
+// Tries all 4 quad orderings for convexity (catches more flippable quads than phase 1).
+// 3-criterion scoring: 1) max minAngle  2) min maxAngle  3) min diagLenSq.
+fn flip_edges_advanced(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>, max_passes: u32) {
+    if tris.len() < 6 {
+        return;
+    }
+    let mut changed = true;
+    let mut pass = 0u32;
+    while changed && pass < max_passes {
+        changed = false;
+        pass += 1;
+        let edges = build_edge_list(tris);
+        'el: for &(eu, ev, ia, ib) in &edges {
+            if ib == usize::MAX {
+                continue;
+            }
+            let w1 = third_vertex(tris, ia, eu, ev);
+            let w2 = third_vertex(tris, ib, eu, ev);
+            if w1 == usize::MAX || w2 == usize::MAX || w1 == w2 {
+                continue;
+            }
+            // Try all 4 orderings for convexity (port of orderQuadAroundSharedEdge)
+            let convex = [
+                (w1, eu, w2, ev),
+                (w1, ev, w2, eu),
+                (w2, eu, w1, ev),
+                (w2, ev, w1, eu),
+            ]
+            .iter()
+            .any(|&(a, b, c, d)| is_convex_quad(pts, poly_sign, a, b, c, d));
+            if !convex {
+                continue;
+            }
+            // 3-criterion scoring (port of isPairScoreBetter)
+            let (min_b, max_b) = pair_angles(pts, eu, ev, w1, w2);
+            let (min_a, max_a) = pair_angles(pts, w1, w2, eu, ev);
+            let diag_b = diag_len_sq(pts, eu, ev);
+            let diag_a = diag_len_sq(pts, w1, w2);
+            const EPS: f64 = 1e-9;
+            let better = if min_a > min_b + EPS {
+                true
+            } else if min_a < min_b - EPS {
+                false
+            } else if max_a < max_b - EPS {
+                true
+            } else if max_a > max_b + EPS {
+                false
+            } else {
+                diag_a < diag_b
+            };
+            if !better {
+                continue;
+            }
+            let (f1a, f1b, f1c) = orient_triangle_like_polygon(pts, poly_sign, w1, w2, eu);
+            let (f2a, f2b, f2c) = orient_triangle_like_polygon(pts, poly_sign, w2, w1, ev);
+            tris[ia] = f1a;
+            tris[ia + 1] = f1b;
+            tris[ia + 2] = f1c;
+            tris[ib] = f2a;
+            tris[ib + 1] = f2b;
+            tris[ib + 2] = f2c;
+            changed = true;
+            break 'el;
+        }
     }
 }
 

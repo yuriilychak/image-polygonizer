@@ -2,8 +2,6 @@ import { filterContoursContainedInOthers } from "./filter-contours";
 import { fileToImageConfig, imageBitmapToRgbaPixels } from "./helpers";
 import { ImageConfigSerialization } from "./image-config-serialization";
 import PolygonData from "./polygon-data";
-import { optimizeTrianglesByEdgeFlipRepeated } from "./triangle-retopology";
-import { triangulateSimplePolygonAvoidSlivers } from "./triangulate";
 
 import type { ImageConfig, ThreadInput, ThreadOutput } from "./types";
 
@@ -66,14 +64,11 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
             const polygons = rawContours.map(contour =>
                 wasm_bindgen.contour_to_polygon(contour, config.minimalDistance, config.maxPointCount) as Uint16Array
             );
-            console.log('WASM3');
+            console.log('WASM4');
             const filteredPolygons = filterContoursContainedInOthers(polygons);
-            const triangles = filteredPolygons.map(polygon => {
-                const firstStep = triangulateSimplePolygonAvoidSlivers(polygon);
-                const secondStep = optimizeTrianglesByEdgeFlipRepeated(polygon, firstStep, 10);
-
-                return secondStep;
-            });
+            const triangles = filteredPolygons.map(polygon =>
+                wasm_bindgen.triangulate_polygon(polygon) as Uint16Array
+            );
             const polygonData = PolygonData.getInstance().serialize(extendedMask, rawContours, filteredPolygons, triangles, config, offset, outline);
 
             message = { id, data: polygonData };
