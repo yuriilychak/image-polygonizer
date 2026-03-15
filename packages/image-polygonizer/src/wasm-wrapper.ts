@@ -1,7 +1,8 @@
+type UintArray = Uint8Array | Uint16Array;
+
 export default class WasmWrapper {
     #wasm: WebAssembly.Exports | null = null;
-    #cachedUint8Memory: Uint8Array | null = null;
-    #cachedUint16Memory: Uint16Array | null = null;
+    #cachedUint: UintArray[] = [];
     #vecLen: number = 0;
 
     async initBuffer(bytes: ArrayBuffer): Promise<void> {
@@ -10,8 +11,6 @@ export default class WasmWrapper {
         const imports = this.#getImports(ns);
         const instance = await WebAssembly.instantiate(module, imports);
         this.#wasm = instance.exports;
-        this.#cachedUint8Memory = null;
-        this.#cachedUint16Memory = null;
         (this.#wasm.__wbindgen_start as Function)();
     }
 
@@ -27,28 +26,24 @@ export default class WasmWrapper {
         const ptr = this.#passArray8ToWasm(pixels, wasm.__wbindgen_malloc as Function);
         const len = this.#vecLen;
         const ret = (wasm.polygonize as Function)(ptr, len, width, height, alphaThreshold, minimalDistance, maxPointCount) as [number, number];
-        const result = this.#getUint16Memory().subarray(ret[0] >>> 1, (ret[0] >>> 1) + ret[1]).slice();
+        const result = this.#getUint(1).subarray(ret[0] >>> 1, (ret[0] >>> 1) + ret[1]).slice();
         (wasm.__wbindgen_free as Function)(ret[0], ret[1] * 2, 2);
         return result;
     }
 
-    #getUint8Memory(): Uint8Array {
-        if (this.#cachedUint8Memory === null || this.#cachedUint8Memory.byteLength === 0) {
-            this.#cachedUint8Memory = new Uint8Array((this.#wasm!.memory as WebAssembly.Memory).buffer);
+    #getUint(index: 0): Uint8Array;
+    #getUint(index: 1): Uint16Array;
+    #getUint(index: 0 | 1): UintArray {
+        const buf = (this.#wasm!.memory as WebAssembly.Memory).buffer;
+        if (this.#cachedUint.length === 0 || this.#cachedUint[0].byteLength === 0) {
+            this.#cachedUint = [new Uint8Array(buf), new Uint16Array(buf)];
         }
-        return this.#cachedUint8Memory;
-    }
-
-    #getUint16Memory(): Uint16Array {
-        if (this.#cachedUint16Memory === null || this.#cachedUint16Memory.byteLength === 0) {
-            this.#cachedUint16Memory = new Uint16Array((this.#wasm!.memory as WebAssembly.Memory).buffer);
-        }
-        return this.#cachedUint16Memory;
+        return this.#cachedUint[index];
     }
 
     #passArray8ToWasm(arg: Uint8Array, malloc: Function): number {
         const ptr = malloc(arg.length, 1) >>> 0;
-        this.#getUint8Memory().set(arg, ptr);
+        this.#getUint(0).set(arg, ptr);
         this.#vecLen = arg.length;
         return ptr;
     }
@@ -60,10 +55,7 @@ export default class WasmWrapper {
                     const table = (this.#wasm as any).__wbindgen_externrefs as WebAssembly.Table;
                     const offset = table.grow(4);
                     table.set(0, undefined);
-                    table.set(offset + 0, undefined);
-                    table.set(offset + 1, null);
-                    table.set(offset + 2, true);
-                    table.set(offset + 3, false);
+                    [undefined, null, true, false].forEach((v, i) => table.set(offset + i, v));
                 },
             },
         };
