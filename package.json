@@ -16,6 +16,7 @@
     "serve": "npm run --workspace=web-interface serve"
   },
   "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.4",
     "@types/node": "^20.10.0",
     "prettier": "^3.1.0",
     "turbo": "^1.11.0",

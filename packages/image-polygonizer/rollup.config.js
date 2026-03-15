@@ -1,7 +1,7 @@
 import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import dts from 'rollup-plugin-dts';
+import terser from '@rollup/plugin-terser';
 
 export default [
     {
@@ -19,6 +19,7 @@ export default [
                 declaration: false,
                 declarationMap: false,
             }),
+            terser(),
         ],
     },
     {
@@ -36,14 +37,7 @@ export default [
                 declaration: false,
                 declarationMap: false,
             }),
+            terser(),
         ],
-    },
-    {
-        input: 'src/index.ts',
-        output: {
-            file: '../../dist/image-polygonizer.d.ts',
-            sourcemap: false,
-        },
-        plugins: [resolve(), dts()],
     },
 ];
