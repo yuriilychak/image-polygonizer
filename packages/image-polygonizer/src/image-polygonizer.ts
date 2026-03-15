@@ -5,12 +5,20 @@ import type { ImageConfig, ImagePolygonizerInstance, ImageActionPayload, ThreadI
 export default class ImagePolygonizer implements ImagePolygonizerInstance {
     #parallel: Parallel;
 
+    #isInit = false;
+
     constructor() {
         this.#parallel = new Parallel();
     }
 
     async init(): Promise<void> {
-        const buffer = await fetch('dist/image-polygonizer.wasm').then(r => r.arrayBuffer());
+        if (!this.#isInit) {
+            this.#isInit = true;
+        } else {
+            return;
+        }
+
+        const buffer = await fetch('image-polygonizer.wasm').then(r => r.arrayBuffer());
         const count = this.#parallel.threadCount;
         const inputs: ThreadInput<'init'>[] = Array.from({ length: count }, () => {
             const clone = buffer.slice(0);

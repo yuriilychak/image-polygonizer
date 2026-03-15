@@ -2,24 +2,24 @@
   "name": "image-polygonizer",
   "version": "0.0.1",
   "type": "module",
-  "main": "./dist/image-polygonizer.js",
-  "module": "./dist/image-polygonizer.js",
-  "types": "./dist/image-polygonizer.d.ts",
+  "main": "../../dist/image-polygonizer.js",
+  "module": "../../dist/image-polygonizer.js",
+  "types": "../../dist/image-polygonizer.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/image-polygonizer.js",
-      "types": "./dist/image-polygonizer.d.ts"
+      "import": "../../dist/image-polygonizer.js",
+      "types": "../../dist/image-polygonizer.d.ts"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "mkdir -p ../web-interface/public/dist && rollup -c && cp ../image-polygonizer-algo/dist/image-polygonizer.wasm ../web-interface/public/dist/",
+    "build": "rollup -c",
     "dev": "rollup -c -w",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "docs": "typedoc",
-    "clean": "rm -rf dist docs"
+    "clean": "rm -rf docs"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",

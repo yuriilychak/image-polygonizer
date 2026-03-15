@@ -22,7 +22,7 @@ export async function imageBitmapToRgbaPixels(bitmap: ImageBitmap): Promise<Uint
         try {
             frame = new VideoFrame(bitmap, { timestamp: 0 });
 
-            const layout: VideoFrameCopyToOptions = { format: "RGBA" };
+            const layout = { format: "RGBA" } as VideoFrameCopyToOptions;
 
             const size = frame.allocationSize(layout);
             const pixels = new Uint8Array(size);

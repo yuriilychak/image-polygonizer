@@ -4,8 +4,11 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  publicDir: '../../dist',
   build: {
-    outDir: 'dist',
+    outDir: '../../dist',
+    emptyOutDir: false,
+    copyPublicDir: false,
     sourcemap: true,
     rollupOptions: {
       external: ['image-polygonizer'],

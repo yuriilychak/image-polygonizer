@@ -5,8 +5,9 @@ export default class WasmWrapper {
     #vecLen: number = 0;
 
     async initBuffer(bytes: ArrayBuffer): Promise<void> {
-        const imports = this.#getImports();
         const module = await WebAssembly.compile(bytes);
+        const ns = WebAssembly.Module.imports(module)[0].module;
+        const imports = this.#getImports(ns);
         const instance = await WebAssembly.instantiate(module, imports);
         this.#wasm = instance.exports;
         this.#cachedUint8Memory = null;
@@ -52,9 +53,9 @@ export default class WasmWrapper {
         return ptr;
     }
 
-    #getImports(): WebAssembly.Imports {
+    #getImports(ns: string): WebAssembly.Imports {
         return {
-            wbg: {
+            [ns]: {
                 __wbindgen_init_externref_table: () => {
                     const table = (this.#wasm as any).__wbindgen_externrefs as WebAssembly.Table;
                     const offset = table.grow(4);

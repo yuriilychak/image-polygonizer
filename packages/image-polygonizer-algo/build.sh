@@ -9,5 +9,6 @@ else
     wasm-pack build --target no-modules --out-dir dist --out-name image-poligonizer
 fi
 
-mv dist/image-poligonizer_bg.wasm dist/image-polygonizer.wasm
-find dist -maxdepth 1 -type f -not -name 'image-polygonizer.wasm' -delete
+mkdir -p ../../dist
+mv dist/image-poligonizer_bg.wasm ../../dist/image-polygonizer.wasm
+rm -rf dist

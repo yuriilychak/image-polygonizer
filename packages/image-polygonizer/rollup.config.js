@@ -7,7 +7,7 @@ export default [
     {
         input: 'src/index.ts',
         output: {
-            file: 'dist/image-polygonizer.js',
+            file: '../../dist/image-polygonizer.js',
             format: 'esm',
             sourcemap: true,
         },
@@ -24,7 +24,7 @@ export default [
     {
         input: 'src/image-poligonizer.worker.ts',
         output: {
-            file: '../web-interface/public/dist/image-polygonizer.calc.js',
+            file: '../../dist/image-polygonizer.calc.js',
             format: 'iife',
             sourcemap: true,
         },
@@ -41,7 +41,7 @@ export default [
     {
         input: 'src/index.ts',
         output: {
-            file: 'dist/image-polygonizer.d.ts',
+            file: '../../dist/image-polygonizer.d.ts',
             sourcemap: false,
         },
         plugins: [resolve(), dts()],
