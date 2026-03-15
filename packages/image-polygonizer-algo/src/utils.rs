@@ -14,6 +14,16 @@ pub(crate) fn orient_raw(ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64) -
 }
 
 pub(crate) fn polygon_signed_area(pts: &[u16]) -> f64 {
+    #[cfg(target_arch = "wasm32")]
+    // SAFETY: simd128 is enabled globally via .cargo/config.toml for wasm32
+    return unsafe { polygon_signed_area_simd(pts) };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    polygon_signed_area_scalar(pts)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn polygon_signed_area_scalar(pts: &[u16]) -> f64 {
     let n = pts.len() / 2;
     let mut sum = 0.0f64;
     for i in 0..n {
@@ -21,6 +31,67 @@ pub(crate) fn polygon_signed_area(pts: &[u16]) -> f64 {
         sum += gx(pts, i) * gy(pts, j) - gx(pts, j) * gy(pts, i);
     }
     sum * 0.5
+}
+
+// ── SIMD implementation (wasm32 simd128) ─────────────────────────────────────
+//
+// Processes 2 shoelace terms per iteration using i32x4_extmul_low_i16x8:
+//   a     = [-y0,  x0, -y1,  x1, 0, 0, 0, 0]  (i16x8, wrapping negation)
+//   b     = [ x1,  y1,  x2,  y2, 0, 0, 0, 0]  (i16x8)
+//   terms = [-y0·x1, x0·y1, -y1·x2, x1·y2]    (i32x4 via extmul_low, exact)
+//   sum   = (x0·y1 - y0·x1) + (x1·y2 - y1·x2) ← two shoelace cross terms
+//
+// Accumulation in i32x4 is safe: coords ≤ 2048, so |term| ≤ 2048² = 4M,
+// well within i32 range even for large polygons at this image scale.
+// Widening to i64 only at the final horizontal sum.
+// If n is odd the final edge (vertex n-1 → vertex 0) is handled in scalar.
+
+#[cfg(target_arch = "wasm32")]
+#[target_feature(enable = "simd128")]
+unsafe fn polygon_signed_area_simd(pts: &[u16]) -> f64 {
+    use core::arch::wasm32::*;
+
+    let n = pts.len() / 2;
+    if n < 3 {
+        return 0.0;
+    }
+
+    let len = pts.len(); // 2*n
+    let simd_pairs = n >> 1; // floor(n/2): each iteration covers 2 vertices
+
+    let mut acc = i32x4_splat(0i32);
+
+    for i in 0..simd_pairs {
+        let base = i << 2; // i*4 — index of x0 in the flat coords array
+        let x0 = pts[base] as i16;
+        let y0 = pts[base + 1] as i16;
+        let x1 = pts[base + 2] as i16;
+        let y1 = pts[base + 3] as i16;
+        // (base+4) and (base+5) wrap around at the last pair when n is even
+        let x2 = pts[(base + 4) % len] as i16;
+        let y2 = pts[(base + 5) % len] as i16;
+
+        let a = i16x8(y0.wrapping_neg(), x0, y1.wrapping_neg(), x1, 0, 0, 0, 0);
+        let b = i16x8(x1, y1, x2, y2, 0, 0, 0, 0);
+        // i32x4: [-y0·x1, x0·y1, -y1·x2, x1·y2] — exact integer multiply
+        let terms = i32x4_extmul_low_i16x8(a, b);
+        acc = i32x4_add(acc, terms);
+    }
+
+    // Widen to i64 only for the final horizontal sum to avoid any overflow there
+    let lo = i64x2_extend_low_i32x4(acc);
+    let hi = i64x2_extend_high_i32x4(acc);
+    let mut sum = i64x2_extract_lane::<0>(lo)
+        + i64x2_extract_lane::<1>(lo)
+        + i64x2_extract_lane::<0>(hi)
+        + i64x2_extract_lane::<1>(hi);
+
+    // Scalar remainder for the last edge when n is odd (vertex n-1 → vertex 0)
+    if n & 1 != 0 {
+        sum += pts[len - 2] as i64 * pts[1] as i64 - pts[len - 1] as i64 * pts[0] as i64;
+    }
+
+    sum as f64 * 0.5
 }
 
 pub(crate) fn triangle_angle(v1x: f64, v1y: f64, v2x: f64, v2y: f64) -> f64 {
