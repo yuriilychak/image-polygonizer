@@ -1,0 +1,1452 @@
+// ── polygon simplification and filtering ─────────────────────────────────────
+
+use crate::utils::orient_raw;
+
+// ── contour_to_polygon ────────────────────────────────────────────────────────
+
+/// Process a raw contour through 5 pipeline steps and return the final polygon:
+///   1. RDP simplification with self-intersection removal
+///   2. Iterative relax+simplify (removeSmallPits + removeObtuseHumps + RDP loop)
+///   3. removeSmallestPitsUntilMaxPointCount
+///   4. extendSimplifiedContourToCoverOriginal
+///   5. refineCoveringContourBySlidingEdgesGreedy
+///
+/// `contour` is a flat [x0,y0,...] u16 array, `min_distance` is the RDP epsilon,
+/// `max_point_count` is the max vertex count for the output polygon.
+pub(crate) fn contour_to_polygon(
+    contour: &[u16],
+    min_distance: f64,
+    max_point_count: u16,
+) -> Vec<u16> {
+    // ── step 1: RDP simplification ────────────────────────────────────────────
+    let step1 = rdp_simplify_no_self_intersections(contour, min_distance);
+
+    if step1.len() < 6 {
+        return step1;
+    }
+
+    // ── step 2: iterative relax+simplify ─────────────────────────────────────
+    let step2 = iterative_relax_and_simplify(
+        &step1,
+        0.008,
+        170.0_f64.to_radians(),
+        260.0_f64.to_radians(),
+        120.0_f64.to_radians(),
+        min_distance,
+    );
+
+    if step2.len() < 6 {
+        return step2;
+    }
+
+    // ── step 3: remove pits until max_point_count ────────────────────────────
+    let step3 = remove_smallest_pits_until_max_count(&step2, max_point_count as usize);
+
+    if step3.len() < 6 {
+        return step3;
+    }
+
+    // ── step 4: extend to cover original ─────────────────────────────────────
+    let step4 = extend_to_cover_original(contour, &step3);
+
+    if step4.len() < 6 {
+        return step4;
+    }
+
+    // ── step 5: refine by sliding edges ──────────────────────────────────────
+    refine_by_sliding_edges(contour, &step4)
+}
+
+// ── Shared low-level helpers ──────────────────────────────────────────────────
+
+/// Normalize a closed contour: remove duplicate last==first vertex if present.
+fn normalize_contour(pts: &[u16]) -> Vec<u16> {
+    let n = pts.len() / 2;
+    if n > 1 && pts[0] == pts[(n - 1) * 2] && pts[1] == pts[(n - 1) * 2 + 1] {
+        pts[..(n - 1) * 2].to_vec()
+    } else {
+        pts.to_vec()
+    }
+}
+
+/// Signed area of a flat u16 contour.
+fn signed_area_u16(pts: &[u16]) -> f64 {
+    let n = pts.len() / 2;
+    let mut sum = 0.0f64;
+    for i in 0..n {
+        let j = (i + 1) % n;
+        sum +=
+            pts[i * 2] as f64 * pts[j * 2 + 1] as f64 - pts[j * 2] as f64 * pts[i * 2 + 1] as f64;
+    }
+    sum * 0.5
+}
+
+/// cross2: (B-A) × (C-B)
+#[inline]
+fn cross2_f(ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64) -> f64 {
+    (bx - ax) * (cy - by) - (by - ay) * (cx - bx)
+}
+
+/// Segment intersection (proper + collinear endpoint cases).
+fn segments_intersect(
+    a0x: f64,
+    a0y: f64,
+    a1x: f64,
+    a1y: f64,
+    b0x: f64,
+    b0y: f64,
+    b1x: f64,
+    b1y: f64,
+) -> bool {
+    #[inline]
+    fn sign(v: f64) -> i32 {
+        if v > 0.0 {
+            1
+        } else if v < 0.0 {
+            -1
+        } else {
+            0
+        }
+    }
+    #[inline]
+    fn on_seg(ax: f64, ay: f64, bx: f64, by: f64, px: f64, py: f64) -> bool {
+        px >= ax.min(bx)
+            && px <= ax.max(bx)
+            && py >= ay.min(by)
+            && py <= ay.max(by)
+            && orient_raw(ax, ay, bx, by, px, py) == 0.0
+    }
+    let o1 = sign(orient_raw(a0x, a0y, a1x, a1y, b0x, b0y));
+    let o2 = sign(orient_raw(a0x, a0y, a1x, a1y, b1x, b1y));
+    let o3 = sign(orient_raw(b0x, b0y, b1x, b1y, a0x, a0y));
+    let o4 = sign(orient_raw(b0x, b0y, b1x, b1y, a1x, a1y));
+    if o1 != o2 && o3 != o4 {
+        return true;
+    }
+    if o1 == 0 && on_seg(a0x, a0y, a1x, a1y, b0x, b0y) {
+        return true;
+    }
+    if o2 == 0 && on_seg(a0x, a0y, a1x, a1y, b1x, b1y) {
+        return true;
+    }
+    if o3 == 0 && on_seg(b0x, b0y, b1x, b1y, a0x, a0y) {
+        return true;
+    }
+    if o4 == 0 && on_seg(b0x, b0y, b1x, b1y, a1x, a1y) {
+        return true;
+    }
+    false
+}
+
+// ── Linked-list state for contour operations ──────────────────────────────────
+
+struct LinkedState {
+    pts: Vec<u16>, // flat [x0,y0,x1,y1,...] original coords
+    prev: Vec<usize>,
+    next: Vec<usize>,
+    alive: Vec<bool>,
+    active: usize,
+}
+
+impl LinkedState {
+    fn new(pts: Vec<u16>) -> Self {
+        let n = pts.len() / 2;
+        let prev = (0..n).map(|i| if i == 0 { n - 1 } else { i - 1 }).collect();
+        let next = (0..n).map(|i| if i == n - 1 { 0 } else { i + 1 }).collect();
+        let alive = vec![true; n];
+        LinkedState {
+            pts,
+            prev,
+            next,
+            alive,
+            active: n,
+        }
+    }
+
+    fn px(&self, i: usize) -> f64 {
+        self.pts[i * 2] as f64
+    }
+    fn py(&self, i: usize) -> f64 {
+        self.pts[i * 2 + 1] as f64
+    }
+
+    fn signed_area(&self) -> f64 {
+        let start = match self.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => return 0.0,
+        };
+        let mut sum = 0.0f64;
+        let mut i = start;
+        loop {
+            let j = self.next[i];
+            sum += self.px(i) * self.py(j) - self.px(j) * self.py(i);
+            i = j;
+            if i == start {
+                break;
+            }
+        }
+        sum * 0.5
+    }
+
+    fn remove(&mut self, idx: usize) {
+        let p = self.prev[idx];
+        let n = self.next[idx];
+        self.next[p] = n;
+        self.prev[n] = p;
+        self.alive[idx] = false;
+        self.active -= 1;
+    }
+
+    fn would_create_self_intersection_after_removal(&self, curr: usize) -> bool {
+        if self.active <= 3 {
+            return false;
+        }
+        let prev = self.prev[curr];
+        let next = self.next[curr];
+        let ax = self.px(prev);
+        let ay = self.py(prev);
+        let bx = self.px(next);
+        let by = self.py(next);
+        let start = match self.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => return false,
+        };
+        let mut e0 = start;
+        loop {
+            let e1 = self.next[e0];
+            let skip =
+                e0 == prev || e1 == prev || e0 == curr || e1 == curr || e0 == next || e1 == next;
+            if !skip {
+                let c0x = self.px(e0);
+                let c0y = self.py(e0);
+                let c1x = self.px(e1);
+                let c1y = self.py(e1);
+                if segments_intersect(ax, ay, bx, by, c0x, c0y, c1x, c1y) {
+                    return true;
+                }
+            }
+            e0 = self.next[e0];
+            if e0 == start {
+                break;
+            }
+        }
+        false
+    }
+
+    fn materialize(&self) -> Vec<u16> {
+        let mut out = Vec::with_capacity(self.active * 2);
+        let start = match self.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => return out,
+        };
+        let mut cur = start;
+        loop {
+            out.push(self.pts[cur * 2]);
+            out.push(self.pts[cur * 2 + 1]);
+            cur = self.next[cur];
+            if cur == start {
+                break;
+            }
+        }
+        out
+    }
+}
+
+// ── Step 1: RDP simplification ────────────────────────────────────────────────
+
+fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: f64) -> Vec<u16> {
+    let normalized = normalize_contour(contour);
+    let n = normalized.len() / 2;
+    if n < 3 {
+        return normalized;
+    }
+
+    let anchor = rdp_find_anchor(&normalized, n);
+    let split = rdp_find_farthest(&normalized, n, anchor);
+    if split == anchor {
+        return normalized;
+    }
+
+    let arc1 = rdp_build_arc(n, anchor, split);
+    let arc2 = rdp_build_arc(n, split, anchor);
+    let keep1 = rdp_simplify_open(&normalized, &arc1, epsilon);
+    let keep2 = rdp_simplify_open(&normalized, &arc2, epsilon);
+    let mut kept = rdp_merge_arcs(&arc1, &keep1, &arc2, &keep2);
+
+    if kept.len() < 3 {
+        return normalized;
+    }
+
+    rdp_resolve_self_intersections(&normalized, &mut kept, epsilon);
+    if kept.len() < 3 {
+        return normalized;
+    }
+
+    rdp_cleanup_redundant(&normalized, &mut kept, epsilon * epsilon);
+    if kept.len() < 3 {
+        return normalized;
+    }
+
+    rdp_materialize(&normalized, &kept)
+}
+
+fn rdp_find_anchor(pts: &[u16], n: usize) -> usize {
+    let mut anchor = 0;
+    let (mut mx, mut my) = (pts[0] as i32, pts[1] as i32);
+    for i in 1..n {
+        let x = pts[i * 2] as i32;
+        let y = pts[i * 2 + 1] as i32;
+        if x < mx || (x == mx && y < my) {
+            anchor = i;
+            mx = x;
+            my = y;
+        }
+    }
+    anchor
+}
+
+fn rdp_find_farthest(pts: &[u16], n: usize, anchor: usize) -> usize {
+    let (ax, ay) = (pts[anchor * 2] as f64, pts[anchor * 2 + 1] as f64);
+    let mut best = anchor;
+    let mut best_d = -1.0f64;
+    for i in 0..n {
+        if i == anchor {
+            continue;
+        }
+        let dx = pts[i * 2] as f64 - ax;
+        let dy = pts[i * 2 + 1] as f64 - ay;
+        let d = dx * dx + dy * dy;
+        if d > best_d {
+            best_d = d;
+            best = i;
+        }
+    }
+    best
+}
+
+fn rdp_build_arc(n: usize, start: usize, end: usize) -> Vec<usize> {
+    let mut arc = Vec::new();
+    let mut cur = start;
+    loop {
+        arc.push(cur);
+        if cur == end {
+            break;
+        }
+        cur = (cur + 1) % n;
+    }
+    arc
+}
+
+fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f64 {
+    let (px, py) = (pts[p * 2] as f64, pts[p * 2 + 1] as f64);
+    let (ax, ay) = (pts[a * 2] as f64, pts[a * 2 + 1] as f64);
+    let (bx, by) = (pts[b * 2] as f64, pts[b * 2 + 1] as f64);
+    let abx = bx - ax;
+    let aby = by - ay;
+    let len_sq = abx * abx + aby * aby;
+    if len_sq == 0.0 {
+        let dx = px - ax;
+        let dy = py - ay;
+        return dx * dx + dy * dy;
+    }
+    let cross = abx * (py - ay) - aby * (px - ax);
+    cross * cross / len_sq
+}
+
+fn rdp_simplify_open(pts: &[u16], indices: &[usize], epsilon: f64) -> Vec<bool> {
+    let n = indices.len();
+    let mut keep = vec![false; n];
+    if n <= 2 {
+        for k in keep.iter_mut() {
+            *k = true;
+        }
+        return keep;
+    }
+    keep[0] = true;
+    keep[n - 1] = true;
+    let eps_sq = epsilon * epsilon;
+    let mut stack: Vec<(usize, usize)> = vec![(0, n - 1)];
+    while let Some((start, end)) = stack.pop() {
+        if end - start <= 1 {
+            continue;
+        }
+        let a = indices[start];
+        let b = indices[end];
+        let mut max_d = -1.0f64;
+        let mut max_i = start;
+        for i in (start + 1)..end {
+            let d = rdp_point_line_dist_sq(pts, indices[i], a, b);
+            if d > max_d {
+                max_d = d;
+                max_i = i;
+            }
+        }
+        if max_d > eps_sq {
+            keep[max_i] = true;
+            stack.push((start, max_i));
+            stack.push((max_i, end));
+        }
+    }
+    keep
+}
+
+fn rdp_merge_arcs(arc1: &[usize], keep1: &[bool], arc2: &[usize], keep2: &[bool]) -> Vec<usize> {
+    let mut kept = Vec::new();
+    for (i, &k) in keep1.iter().enumerate() {
+        if k {
+            kept.push(arc1[i]);
+        }
+    }
+    for (i, &k) in keep2[1..keep2.len() - 1].iter().enumerate() {
+        if k {
+            kept.push(arc2[i + 1]);
+        }
+    }
+    kept
+}
+
+fn rdp_is_adjacent(a: usize, b: usize, n: usize) -> bool {
+    a == b || (a + 1) % n == b || (b + 1) % n == a
+}
+
+fn rdp_same_pt(pts: &[u16], a: usize, b: usize) -> bool {
+    pts[a * 2] == pts[b * 2] && pts[a * 2 + 1] == pts[b * 2 + 1]
+}
+
+fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usize)> {
+    let m = kept.len();
+    for ea in 0..m {
+        let a0 = kept[ea];
+        let a1 = kept[(ea + 1) % m];
+        let a0x = pts[a0 * 2] as f64;
+        let a0y = pts[a0 * 2 + 1] as f64;
+        let a1x = pts[a1 * 2] as f64;
+        let a1y = pts[a1 * 2 + 1] as f64;
+        for eb in (ea + 1)..m {
+            if rdp_is_adjacent(ea, eb, m) {
+                continue;
+            }
+            let b0 = kept[eb];
+            let b1 = kept[(eb + 1) % m];
+            if rdp_same_pt(pts, a0, b0)
+                || rdp_same_pt(pts, a0, b1)
+                || rdp_same_pt(pts, a1, b0)
+                || rdp_same_pt(pts, a1, b1)
+            {
+                continue;
+            }
+            let b0x = pts[b0 * 2] as f64;
+            let b0y = pts[b0 * 2 + 1] as f64;
+            let b1x = pts[b1 * 2] as f64;
+            let b1y = pts[b1 * 2 + 1] as f64;
+            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
+                return Some((ea, eb));
+            }
+        }
+    }
+    None
+}
+
+fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i64, f64) {
+    let mut cur = (start + 1) % n;
+    let mut max_d = -1.0f64;
+    let mut max_p = -1i64;
+    while cur != end {
+        let d = rdp_point_line_dist_sq(pts, cur, start, end);
+        if d > max_d {
+            max_d = d;
+            max_p = cur as i64;
+        }
+        cur = (cur + 1) % n;
+    }
+    (max_p, max_d)
+}
+
+fn rdp_resolve_self_intersections(pts: &[u16], kept: &mut Vec<usize>, epsilon: f64) {
+    let n = pts.len() / 2;
+    let eps_sq = epsilon * epsilon;
+    for _ in 0..(n * 2) {
+        let Some((ea, eb)) = rdp_find_self_intersection(pts, kept) else {
+            return;
+        };
+        let (pa, da) = rdp_find_worst_on_arc(pts, n, kept[ea], kept[(ea + 1) % kept.len()]);
+        let (pb, db) = rdp_find_worst_on_arc(pts, n, kept[eb], kept[(eb + 1) % kept.len()]);
+        let can_a = pa >= 0 && da > 0.0;
+        let can_b = pb >= 0 && db > 0.0;
+        if !can_a && !can_b {
+            return;
+        }
+        if can_a && (!can_b || da >= db) {
+            if !kept.contains(&(pa as usize)) {
+                kept.insert(ea + 1, pa as usize);
+            }
+        } else {
+            if !kept.contains(&(pb as usize)) {
+                kept.insert(eb + 1, pb as usize);
+            }
+        }
+        rdp_cleanup_redundant(pts, kept, eps_sq);
+    }
+}
+
+fn rdp_arc_fits_eps(pts: &[u16], n: usize, start: usize, end: usize, eps_sq: f64) -> bool {
+    let mut cur = (start + 1) % n;
+    while cur != end {
+        if rdp_point_line_dist_sq(pts, cur, start, end) > eps_sq {
+            return false;
+        }
+        cur = (cur + 1) % n;
+    }
+    true
+}
+
+fn rdp_cleanup_redundant(pts: &[u16], kept: &mut Vec<usize>, eps_sq: f64) {
+    if kept.len() <= 3 {
+        return;
+    }
+    let n = pts.len() / 2;
+    let mut changed = true;
+    while changed && kept.len() > 3 {
+        changed = false;
+        for i in 0..kept.len() {
+            let prev = kept[(i + kept.len() - 1) % kept.len()];
+            let next = kept[(i + 1) % kept.len()];
+            if rdp_arc_fits_eps(pts, n, prev, next, eps_sq) {
+                let removed = kept.remove(i);
+                if rdp_find_self_intersection(pts, kept).is_some() {
+                    kept.insert(i, removed);
+                } else {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
+    let mut out = Vec::with_capacity(kept.len() * 2);
+    for &k in kept {
+        out.push(pts[k * 2]);
+        out.push(pts[k * 2 + 1]);
+    }
+    out
+}
+
+// ── Step 2: iterative relax+simplify ─────────────────────────────────────────
+
+fn interior_angle_rad(
+    ax: f64,
+    ay: f64,
+    bx: f64,
+    by: f64,
+    cx: f64,
+    cy: f64,
+    orientation_sign: f64,
+) -> f64 {
+    let v1x = ax - bx;
+    let v1y = ay - by;
+    let v2x = cx - bx;
+    let v2y = cy - by;
+    let l1 = (v1x * v1x + v1y * v1y).sqrt();
+    let l2 = (v2x * v2x + v2y * v2y).sqrt();
+    if l1 == 0.0 || l2 == 0.0 {
+        return 0.0;
+    }
+    let cos = ((v1x * v2x + v1y * v2y) / (l1 * l2)).clamp(-1.0, 1.0);
+    let small_angle = cos.acos();
+    let cross = cross2_f(ax, ay, bx, by, cx, cy);
+    let is_convex = if orientation_sign > 0.0 {
+        cross > 0.0
+    } else {
+        cross < 0.0
+    };
+    if is_convex {
+        small_angle
+    } else {
+        2.0 * std::f64::consts::PI - small_angle
+    }
+}
+
+fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec<u16> {
+    let normalized = normalize_contour(&pts);
+    let n = normalized.len() / 2;
+    if n <= 3 {
+        return normalized;
+    }
+    let mut state = LinkedState::new(normalized);
+    let signed = state.signed_area();
+    let total_area = signed.abs();
+    if total_area == 0.0 {
+        return state.materialize();
+    }
+    let threshold = total_area * percentage;
+    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    let mut changed = true;
+    while changed && state.active > 3 {
+        changed = false;
+        let start = match state.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => break,
+        };
+        let mut visited = 0;
+        let limit = state.active;
+        let mut i = start;
+        while visited < limit && state.active > 3 {
+            let curr = i;
+            i = state.next[curr];
+            visited += 1;
+            if !state.alive[curr] {
+                continue;
+            }
+            let prev = state.prev[curr];
+            let next = state.next[curr];
+            let (ax, ay) = (state.px(prev), state.py(prev));
+            let (bx, by) = (state.px(curr), state.py(curr));
+            let (cx, cy) = (state.px(next), state.py(next));
+            let cross = cross2_f(ax, ay, bx, by, cx, cy);
+            let is_concave = if orient_sign > 0.0 {
+                cross < 0.0
+            } else {
+                cross > 0.0
+            };
+            if !is_concave {
+                continue;
+            }
+            let pit_area = cross.abs() * 0.5;
+            let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
+            if pit_area > threshold && angle <= hole_angle_rad {
+                continue;
+            }
+            if state.would_create_self_intersection_after_removal(curr) {
+                continue;
+            }
+            state.remove(curr);
+            changed = true;
+        }
+    }
+    state.materialize()
+}
+
+fn remove_obtuse_humps(
+    pts: Vec<u16>,
+    percentage: f64,
+    angle_threshold_rad: f64,
+    pick_angle_rad: f64,
+) -> Vec<u16> {
+    let normalized = normalize_contour(&pts);
+    let n = normalized.len() / 2;
+    if n <= 3 {
+        return normalized;
+    }
+    let mut state = LinkedState::new(normalized);
+    let signed = state.signed_area();
+    let total_area = signed.abs();
+    if total_area == 0.0 {
+        return state.materialize();
+    }
+    let threshold = total_area * percentage;
+    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    let mut changed = true;
+    while changed && state.active > 3 {
+        changed = false;
+        let start = match state.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => break,
+        };
+        let mut visited = 0;
+        let limit = state.active;
+        let mut i = start;
+        while visited < limit && state.active > 3 {
+            let curr = i;
+            i = state.next[curr];
+            visited += 1;
+            if !state.alive[curr] {
+                continue;
+            }
+            let prev = state.prev[curr];
+            let next = state.next[curr];
+            let (ax, ay) = (state.px(prev), state.py(prev));
+            let (bx, by) = (state.px(curr), state.py(curr));
+            let (cx, cy) = (state.px(next), state.py(next));
+            let cross = cross2_f(ax, ay, bx, by, cx, cy);
+            let is_convex = if orient_sign > 0.0 {
+                cross > 0.0
+            } else {
+                cross < 0.0
+            };
+            if !is_convex {
+                continue;
+            }
+            let hump_area = cross.abs() * 0.5;
+            let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
+            let remove_by_angle = angle > angle_threshold_rad;
+            let remove_by_area = angle > pick_angle_rad && hump_area <= threshold;
+            if !remove_by_angle && !remove_by_area {
+                continue;
+            }
+            if state.would_create_self_intersection_after_removal(curr) {
+                continue;
+            }
+            state.remove(curr);
+            changed = true;
+        }
+    }
+    state.materialize()
+}
+
+fn iterative_relax_and_simplify(
+    contour: &[u16],
+    percentage: f64,
+    angle_rad: f64,
+    hole_angle_rad: f64,
+    pick_angle_rad: f64,
+    epsilon: f64,
+) -> Vec<u16> {
+    let mut current = normalize_contour(contour);
+    if current.len() / 2 <= 3 {
+        return current;
+    }
+    let mut prev_count: i64 = -1;
+    loop {
+        let cnt = (current.len() / 2) as i64;
+        if cnt == prev_count {
+            return current;
+        }
+        prev_count = cnt;
+        current = remove_small_pits(current, percentage, hole_angle_rad);
+        current = remove_obtuse_humps(current, percentage, angle_rad, pick_angle_rad);
+        current = rdp_simplify_no_self_intersections(&current, epsilon);
+        if current.len() / 2 <= 3 {
+            return current;
+        }
+    }
+}
+
+// ── Step 3: remove pits until max point count ─────────────────────────────────
+
+fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Vec<u16> {
+    let normalized = normalize_contour(contour);
+    let n = normalized.len() / 2;
+    if n <= 3 || n <= max_count {
+        return normalized;
+    }
+    let mut state = LinkedState::new(normalized);
+    let signed = state.signed_area();
+    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    while state.active > 3 && state.active > max_count {
+        let start = match state.alive.iter().position(|&a| a) {
+            Some(s) => s,
+            None => break,
+        };
+        let mut best_idx: i64 = -1;
+        let mut best_area = f64::INFINITY;
+        let mut cur = start;
+        loop {
+            if state.alive[cur] {
+                let prev = state.prev[cur];
+                let next = state.next[cur];
+                let (ax, ay) = (state.px(prev), state.py(prev));
+                let (bx, by) = (state.px(cur), state.py(cur));
+                let (cx, cy) = (state.px(next), state.py(next));
+                let cross = cross2_f(ax, ay, bx, by, cx, cy);
+                let is_concave = if orient_sign > 0.0 {
+                    cross < 0.0
+                } else {
+                    cross > 0.0
+                };
+                if is_concave {
+                    let area = cross.abs() * 0.5;
+                    if area < best_area && !state.would_create_self_intersection_after_removal(cur)
+                    {
+                        best_area = area;
+                        best_idx = cur as i64;
+                    }
+                }
+            }
+            cur = state.next[cur];
+            if cur == start {
+                break;
+            }
+        }
+        if best_idx < 0 {
+            break;
+        }
+        state.remove(best_idx as usize);
+    }
+    state.materialize()
+}
+
+// ── Step 4: extend to cover original ─────────────────────────────────────────
+
+fn map_simplified_to_original_indices(original: &[u16], simplified: &[u16]) -> Option<Vec<usize>> {
+    let no = original.len() / 2;
+    let ns = simplified.len() / 2;
+    let mut matches: Vec<Vec<usize>> = Vec::with_capacity(ns);
+    for i in 0..ns {
+        let (sx, sy) = (simplified[i * 2], simplified[i * 2 + 1]);
+        let list: Vec<usize> = (0..no)
+            .filter(|&j| original[j * 2] == sx && original[j * 2 + 1] == sy)
+            .collect();
+        if list.is_empty() {
+            return None;
+        }
+        matches.push(list);
+    }
+    for &start in &matches[0] {
+        let mut result = vec![0usize; ns];
+        result[0] = start;
+        let mut prev = start;
+        let mut ok = true;
+        for i in 1..ns {
+            let candidates = &matches[i];
+            let mut best: i64 = -1;
+            let mut best_fwd = no + 1;
+            for &idx in candidates {
+                let fwd = if idx > prev {
+                    idx - prev
+                } else {
+                    idx + no - prev
+                };
+                if fwd > 0 && fwd < best_fwd {
+                    best_fwd = fwd;
+                    best = idx as i64;
+                }
+            }
+            if best < 0 {
+                ok = false;
+                break;
+            }
+            result[i] = best as usize;
+            prev = best as usize;
+        }
+        if !ok {
+            continue;
+        }
+        let close_fwd = if start > prev {
+            start - prev
+        } else {
+            start + no - prev
+        };
+        if close_fwd > 0 {
+            return Some(result);
+        }
+    }
+    None
+}
+
+fn compute_arc_max_offset(
+    original: &[u16],
+    no: usize,
+    start: usize,
+    end: usize,
+    nx: f64,
+    ny: f64,
+    c0: f64,
+) -> f64 {
+    let mut delta = 0.0f64;
+    let mut k = start;
+    for _ in 0..=no {
+        let px = original[k * 2] as f64;
+        let py = original[k * 2 + 1] as f64;
+        let val = nx * px + ny * py + c0;
+        if val > delta {
+            delta = val;
+        }
+        if k == end {
+            break;
+        }
+        k = (k + 1) % no;
+    }
+    delta
+}
+
+fn intersect_lines(a1: f64, b1: f64, c1: f64, a2: f64, b2: f64, c2: f64) -> Option<(f64, f64)> {
+    let det = a1 * b2 - a2 * b1;
+    if det.abs() < 1e-12 {
+        return None;
+    }
+    let x = (b1 * c2 - b2 * c1) / det;
+    let y = (a2 * c1 - a1 * c2) / det;
+    Some((x, y))
+}
+
+fn snap_conservative(fx: f64, fy: f64, la: (f64, f64, f64), lb: (f64, f64, f64)) -> (f64, f64) {
+    let cx = fx.round() as i32;
+    let cy = fy.round() as i32;
+    let mut best_x = cx;
+    let mut best_y = cy;
+    let mut best_d = f64::INFINITY;
+    for radius in 0i32..=16 {
+        let mut found = false;
+        for dy in -radius..=radius {
+            for dx in -radius..=radius {
+                let (x, y) = (cx + dx, cy + dy);
+                if la.0 * x as f64 + la.1 * y as f64 + la.2 <= 1e-9
+                    && lb.0 * x as f64 + lb.1 * y as f64 + lb.2 <= 1e-9
+                {
+                    let d = (x as f64 - fx).powi(2) + (y as f64 - fy).powi(2);
+                    if d < best_d {
+                        best_d = d;
+                        best_x = x;
+                        best_y = y;
+                        found = true;
+                    }
+                }
+            }
+        }
+        if found {
+            return (best_x as f64, best_y as f64);
+        }
+    }
+    let (nx, ny) = (la.0 + lb.0, la.1 + lb.1);
+    let len = (nx * nx + ny * ny).sqrt();
+    if len > 1e-12 {
+        let (ux, uy) = (nx / len, ny / len);
+        for t in 0..=64i32 {
+            let x = (fx + ux * t as f64).round() as i32;
+            let y = (fy + uy * t as f64).round() as i32;
+            if la.0 * x as f64 + la.1 * y as f64 + la.2 <= 1e-9
+                && lb.0 * x as f64 + lb.1 * y as f64 + lb.2 <= 1e-9
+            {
+                return (x as f64, y as f64);
+            }
+        }
+    }
+    (cx as f64, cy as f64)
+}
+
+fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
+    let orig = normalize_contour(original);
+    let simp = normalize_contour(simplified);
+    let no = orig.len() / 2;
+    let ns = simp.len() / 2;
+    if no < 3 || ns < 3 {
+        return simp;
+    }
+
+    let orientation = signed_area_u16(&simp);
+    let orig_indices = match map_simplified_to_original_indices(&orig, &simp) {
+        Some(v) => v,
+        None => return simp,
+    };
+
+    let mut lines: Vec<(f64, f64, f64)> = Vec::with_capacity(ns);
+    for i in 0..ns {
+        let j = (i + 1) % ns;
+        let (ax, ay) = (simp[i * 2] as f64, simp[i * 2 + 1] as f64);
+        let (bx, by) = (simp[j * 2] as f64, simp[j * 2 + 1] as f64);
+        let dx = bx - ax;
+        let dy = by - ay;
+        let len = (dx * dx + dy * dy).sqrt();
+        if len == 0.0 {
+            return simp;
+        }
+        let (nx, ny) = if orientation >= 0.0 {
+            (dy / len, -dx / len)
+        } else {
+            (-dy / len, dx / len)
+        };
+        let c0 = -(nx * ax + ny * ay);
+        let delta = compute_arc_max_offset(&orig, no, orig_indices[i], orig_indices[j], nx, ny, c0);
+        lines.push((nx, ny, c0 - delta));
+    }
+
+    let mut out = Vec::with_capacity(ns * 2);
+    for i in 0..ns {
+        let prev = (i + ns - 1) % ns;
+        let la = lines[prev];
+        let lb = lines[i];
+        let (x, y) = match intersect_lines(la.0, la.1, la.2, lb.0, lb.1, lb.2) {
+            Some((ix, iy)) => snap_conservative(ix, iy, la, lb),
+            None => {
+                let (sx, sy) = (simp[i * 2] as f64, simp[i * 2 + 1] as f64);
+                snap_conservative(sx, sy, la, lb)
+            }
+        };
+        out.push(x.max(0.0).min(65535.0) as u16);
+        out.push(y.max(0.0).min(65535.0) as u16);
+    }
+    out
+}
+
+// ── Step 5: refine by sliding edges ──────────────────────────────────────────
+
+fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
+    let norm = normalize_contour(contour);
+    let n = norm.len() / 2;
+    if n <= 3 {
+        return norm;
+    }
+    let mut keep = Vec::new();
+    for i in 0..n {
+        let prev = (i + n - 1) % n;
+        let next = (i + 1) % n;
+        let (ax, ay) = (norm[prev * 2] as f64, norm[prev * 2 + 1] as f64);
+        let (bx, by) = (norm[i * 2] as f64, norm[i * 2 + 1] as f64);
+        let (cx, cy) = (norm[next * 2] as f64, norm[next * 2 + 1] as f64);
+        let cross = orient_raw(ax, ay, bx, by, cx, cy);
+        let between = bx >= ax.min(cx) && bx <= ax.max(cx) && by >= ay.min(cy) && by <= ay.max(cy);
+        if cross != 0.0 || !between {
+            keep.push(i);
+        }
+    }
+    if keep.len() < 3 {
+        return norm;
+    }
+    let mut out = Vec::with_capacity(keep.len() * 2);
+    for &k in &keep {
+        out.push(norm[k * 2]);
+        out.push(norm[k * 2 + 1]);
+    }
+    out
+}
+
+struct SlidingPoly {
+    pts: Vec<i32>,
+}
+
+impl SlidingPoly {
+    fn new(cover: &[u16]) -> Self {
+        let n = cover.len() / 2;
+        let mut pts = vec![0i32; n * 2];
+        for i in 0..cover.len() {
+            pts[i] = cover[i] as i32;
+        }
+        SlidingPoly { pts }
+    }
+    fn count(&self) -> usize {
+        self.pts.len() / 2
+    }
+    fn px(&self, i: usize) -> i32 {
+        self.pts[i * 2]
+    }
+    fn py(&self, i: usize) -> i32 {
+        self.pts[i * 2 + 1]
+    }
+    fn set(&mut self, i: usize, x: i32, y: i32) {
+        self.pts[i * 2] = x;
+        self.pts[i * 2 + 1] = y;
+    }
+    fn mod_idx(&self, i: i64) -> usize {
+        let n = self.count() as i64;
+        ((i % n + n) % n) as usize
+    }
+    fn signed_area(&self) -> f64 {
+        let n = self.count();
+        let mut sum = 0.0f64;
+        for i in 0..n {
+            let j = (i + 1) % n;
+            sum += self.px(i) as f64 * self.py(j) as f64 - self.px(j) as f64 * self.py(i) as f64;
+        }
+        sum * 0.5
+    }
+    fn to_u16(&self) -> Vec<u16> {
+        self.pts
+            .iter()
+            .map(|&v| v.max(0).min(65535) as u16)
+            .collect()
+    }
+}
+
+fn gcd_i(a: i32, b: i32) -> i32 {
+    let mut a = a;
+    let mut b = b;
+    while b != 0 {
+        let t = a % b;
+        a = b;
+        b = t;
+    }
+    if a == 0 {
+        1
+    } else {
+        a
+    }
+}
+
+fn primitive_dir(dx: i32, dy: i32) -> (i32, i32) {
+    if dx == 0 && dy == 0 {
+        return (0, 0);
+    }
+    let g = gcd_i(dx.abs(), dy.abs());
+    (dx / g, dy / g)
+}
+
+fn point_on_seg_i32(ax: i32, ay: i32, bx: i32, by: i32, px: i32, py: i32) -> bool {
+    let cross = (bx - ax) as i64 * (py - ay) as i64 - (by - ay) as i64 * (px - ax) as i64;
+    if cross != 0 {
+        return false;
+    }
+    px >= ax.min(bx) && px <= ax.max(bx) && py >= ay.min(by) && py <= ay.max(by)
+}
+
+fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
+    let n = poly.count();
+    let mut inside = false;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (xi, yi) = (poly.px(i), poly.py(i));
+        let (xj, yj) = (poly.px(j), poly.py(j));
+        if point_on_seg_i32(xj, yj, xi, yi, px, py) {
+            return true;
+        }
+        if (yi > py) != (yj > py) {
+            let t = (xj - xi) as f64 * (py - yi) as f64 / (yj - yi) as f64 + xi as f64;
+            if (px as f64) <= t {
+                inside = !inside;
+            }
+        }
+        j = i;
+    }
+    inside
+}
+
+fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) -> bool {
+    let n = poly.count();
+    let i0 = poly.mod_idx(i1 as i64 - 1);
+    let i3 = poly.mod_idx(i2 as i64 + 1);
+    let changed = [(i0, i1), (i1, i2), (i2, i3)];
+    fn shares(a0: usize, a1: usize, b0: usize, b1: usize) -> bool {
+        a0 == b0 || a0 == b1 || a1 == b0 || a1 == b1
+    }
+    fn in_changed(a: usize, b: usize, ch: &[(usize, usize)]) -> bool {
+        ch.iter().any(|&(x, y)| x == a && y == b)
+    }
+    for &(ca, cb) in &changed {
+        let a0x = poly.px(ca) as f64;
+        let a0y = poly.py(ca) as f64;
+        let a1x = poly.px(cb) as f64;
+        let a1y = poly.py(cb) as f64;
+        for i in 0..n {
+            let j = (i + 1) % n;
+            if shares(ca, cb, i, j) {
+                continue;
+            }
+            if in_changed(i, j, &changed) {
+                continue;
+            }
+            let b0x = poly.px(i) as f64;
+            let b0y = poly.py(i) as f64;
+            let b1x = poly.px(j) as f64;
+            let b1y = poly.py(j) as f64;
+            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
+                return true;
+            }
+        }
+    }
+    for ii in 0..changed.len() {
+        let (a0, a1) = changed[ii];
+        let a0x = poly.px(a0) as f64;
+        let a0y = poly.py(a0) as f64;
+        let a1x = poly.px(a1) as f64;
+        let a1y = poly.py(a1) as f64;
+        for jj in (ii + 1)..changed.len() {
+            let (b0, b1) = changed[jj];
+            if shares(a0, a1, b0, b1) {
+                continue;
+            }
+            let b0x = poly.px(b0) as f64;
+            let b0y = poly.py(b0) as f64;
+            let b1x = poly.px(b1) as f64;
+            let b1y = poly.py(b1) as f64;
+            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn has_degenerate_local(poly: &SlidingPoly, i0: usize, i1: usize, i2: usize, i3: usize) -> bool {
+    (poly.px(i0) == poly.px(i1) && poly.py(i0) == poly.py(i1))
+        || (poly.px(i1) == poly.px(i2) && poly.py(i1) == poly.py(i2))
+        || (poly.px(i2) == poly.px(i3) && poly.py(i2) == poly.py(i3))
+}
+
+fn all_witnesses_inside(
+    poly: &SlidingPoly,
+    witnesses: &[u16],
+    min_x: i32,
+    min_y: i32,
+    max_x: i32,
+    max_y: i32,
+) -> bool {
+    let nw = witnesses.len() / 2;
+    for i in 0..nw {
+        let wx = witnesses[i * 2] as i32;
+        let wy = witnesses[i * 2 + 1] as i32;
+        if wx < min_x || wx > max_x || wy < min_y || wy > max_y {
+            continue;
+        }
+        if !point_in_poly_or_on_edge(poly, wx, wy) {
+            return false;
+        }
+    }
+    true
+}
+
+fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[u16]) -> bool {
+    let count = poly.count();
+    if count < 4 {
+        return false;
+    }
+    let i0 = poly.mod_idx(edge_start as i64 - 1);
+    let i1 = edge_start;
+    let i2 = poly.mod_idx(edge_start as i64 + 1);
+    let i3 = poly.mod_idx(edge_start as i64 + 2);
+    let dir_a = primitive_dir(poly.px(i1) - poly.px(i0), poly.py(i1) - poly.py(i0));
+    let dir_b = primitive_dir(poly.px(i2) - poly.px(i3), poly.py(i2) - poly.py(i3));
+    if dir_a == (0, 0) || dir_b == (0, 0) {
+        return false;
+    }
+    let steps: [(i32, i32); 8] = [
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+    ];
+    let mut any_improved = false;
+    loop {
+        let cur_area = poly.signed_area().abs();
+        let mut best_area = cur_area;
+        let mut best_step: Option<(i32, i32)> = None;
+        let (old_ax, old_ay) = (poly.px(i1), poly.py(i1));
+        let (old_bx, old_by) = (poly.px(i2), poly.py(i2));
+        for &(sa, sb) in &steps {
+            let ax = old_ax + dir_a.0 * sa;
+            let ay = old_ay + dir_a.1 * sa;
+            let bx = old_bx + dir_b.0 * sb;
+            let by = old_by + dir_b.1 * sb;
+            if ax == bx && ay == by {
+                continue;
+            }
+            poly.set(i1, ax, ay);
+            poly.set(i2, bx, by);
+            if has_degenerate_local(poly, i0, i1, i2, i3)
+                || would_self_intersect_after_slide(poly, i1, i2)
+            {
+                poly.set(i1, old_ax, old_ay);
+                poly.set(i2, old_bx, old_by);
+                continue;
+            }
+            let area = poly.signed_area().abs();
+            if area < best_area {
+                let xs = [poly.px(i0), ax, bx, poly.px(i3), old_ax, old_bx];
+                let ys = [poly.py(i0), ay, by, poly.py(i3), old_ay, old_by];
+                let min_x = xs.iter().copied().min().unwrap() - 2;
+                let max_x = xs.iter().copied().max().unwrap() + 2;
+                let min_y = ys.iter().copied().min().unwrap() - 2;
+                let max_y = ys.iter().copied().max().unwrap() + 2;
+                if all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y) {
+                    best_area = area;
+                    best_step = Some((sa, sb));
+                }
+            }
+            poly.set(i1, old_ax, old_ay);
+            poly.set(i2, old_bx, old_by);
+        }
+        let Some((sa, sb)) = best_step else {
+            return any_improved;
+        };
+        let mut moved = false;
+        loop {
+            let (cur_ax, cur_ay) = (poly.px(i1), poly.py(i1));
+            let (cur_bx, cur_by) = (poly.px(i2), poly.py(i2));
+            let next_ax = cur_ax + dir_a.0 * sa;
+            let next_ay = cur_ay + dir_a.1 * sa;
+            let next_bx = cur_bx + dir_b.0 * sb;
+            let next_by = cur_by + dir_b.1 * sb;
+            if next_ax == next_bx && next_ay == next_by {
+                break;
+            }
+            let area_before = poly.signed_area().abs();
+            poly.set(i1, next_ax, next_ay);
+            poly.set(i2, next_bx, next_by);
+            if has_degenerate_local(poly, i0, i1, i2, i3)
+                || would_self_intersect_after_slide(poly, i1, i2)
+            {
+                poly.set(i1, cur_ax, cur_ay);
+                poly.set(i2, cur_bx, cur_by);
+                break;
+            }
+            let xs = [poly.px(i0), next_ax, next_bx, poly.px(i3), cur_ax, cur_bx];
+            let ys = [poly.py(i0), next_ay, next_by, poly.py(i3), cur_ay, cur_by];
+            let min_x = xs.iter().copied().min().unwrap() - 2;
+            let max_x = xs.iter().copied().max().unwrap() + 2;
+            let min_y = ys.iter().copied().min().unwrap() - 2;
+            let max_y = ys.iter().copied().max().unwrap() + 2;
+            if !all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y) {
+                poly.set(i1, cur_ax, cur_ay);
+                poly.set(i2, cur_bx, cur_by);
+                break;
+            }
+            let area_after = poly.signed_area().abs();
+            if area_after >= area_before {
+                poly.set(i1, cur_ax, cur_ay);
+                poly.set(i2, cur_bx, cur_by);
+                break;
+            }
+            moved = true;
+            any_improved = true;
+        }
+        if !moved {
+            return any_improved;
+        }
+    }
+}
+
+fn refine_by_sliding_edges(original: &[u16], cover: &[u16]) -> Vec<u16> {
+    let witnesses = reduce_collinear(original);
+    let cover_norm = normalize_contour(cover);
+    let count = cover_norm.len() / 2;
+    if count <= 3 {
+        return cover_norm;
+    }
+    let mut poly = SlidingPoly::new(&cover_norm);
+    let mut improved = true;
+    while improved {
+        improved = false;
+        let vert_count = poly.count();
+        for edge in 0..vert_count {
+            if improve_sliding_edge(&mut poly, edge, &witnesses) {
+                improved = true;
+            }
+        }
+    }
+    poly.to_u16()
+}
+
+// ── polygon filtering (pg_filter_contained) ───────────────────────────────────
+
+fn pg_contour_bbox(pts: &[u16]) -> (f64, f64, f64, f64) {
+    let n = pts.len() / 2;
+    if n == 0 {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    let (mut min_x, mut max_x) = (pts[0] as f64, pts[0] as f64);
+    let (mut min_y, mut max_y) = (pts[1] as f64, pts[1] as f64);
+    for i in 1..n {
+        let x = pts[i * 2] as f64;
+        let y = pts[i * 2 + 1] as f64;
+        if x < min_x {
+            min_x = x;
+        }
+        if x > max_x {
+            max_x = x;
+        }
+        if y < min_y {
+            min_y = y;
+        }
+        if y > max_y {
+            max_y = y;
+        }
+    }
+    (min_x, min_y, max_x, max_y)
+}
+
+fn pg_point_in_poly_or_edge(poly: &[u16], px: f64, py: f64) -> bool {
+    let n = poly.len() / 2;
+    let mut inside = false;
+    let mut j = n - 1;
+    for i in 0..n {
+        let (xi, yi) = (poly[i * 2] as f64, poly[i * 2 + 1] as f64);
+        let (xj, yj) = (poly[j * 2] as f64, poly[j * 2 + 1] as f64);
+        if orient_raw(xj, yj, xi, yi, px, py) == 0.0
+            && px >= xj.min(xi)
+            && px <= xj.max(xi)
+            && py >= yj.min(yi)
+            && py <= yj.max(yi)
+        {
+            return true;
+        }
+        if (yi > py) != (yj > py) && px <= (xj - xi) * (py - yi) / (yj - yi) + xi {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
+}
+
+fn pg_contours_intersect(a: &[u16], b: &[u16]) -> bool {
+    let na = a.len() / 2;
+    let nb = b.len() / 2;
+    for i in 0..na {
+        let i2 = (i + 1) % na;
+        let (a0x, a0y) = (a[i * 2] as f64, a[i * 2 + 1] as f64);
+        let (a1x, a1y) = (a[i2 * 2] as f64, a[i2 * 2 + 1] as f64);
+        for j in 0..nb {
+            let j2 = (j + 1) % nb;
+            if segments_intersect(
+                a0x,
+                a0y,
+                a1x,
+                a1y,
+                b[j * 2] as f64,
+                b[j * 2 + 1] as f64,
+                b[j2 * 2] as f64,
+                b[j2 * 2 + 1] as f64,
+            ) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn pg_is_inside(inner: &[u16], outer: &[u16]) -> bool {
+    if inner.len() < 6 || outer.len() < 6 {
+        return false;
+    }
+    if pg_contours_intersect(inner, outer) {
+        return false;
+    }
+    pg_point_in_poly_or_edge(outer, inner[0] as f64, inner[1] as f64)
+}
+
+pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
+    let n = contours.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let normalized: Vec<Vec<u16>> = contours
+        .into_iter()
+        .map(|c| normalize_contour(&c))
+        .collect();
+    let bboxes: Vec<(f64, f64, f64, f64)> = normalized.iter().map(|c| pg_contour_bbox(c)).collect();
+    let areas: Vec<f64> = normalized
+        .iter()
+        .map(|c| signed_area_u16(c).abs())
+        .collect();
+    let mut removed = vec![false; n];
+    for i in 0..n {
+        if removed[i] {
+            continue;
+        }
+        for j in 0..n {
+            if i == j || removed[i] {
+                continue;
+            }
+            if areas[i] > areas[j] {
+                continue;
+            }
+            let (bimx, bimy, bixx, bixy) = bboxes[i];
+            let (bjmx, bjmy, bjxx, bjxy) = bboxes[j];
+            if bimx < bjmx || bixx > bjxx || bimy < bjmy || bixy > bjxy {
+                continue;
+            }
+            if pg_is_inside(&normalized[i], &normalized[j]) {
+                removed[i] = true;
+                break;
+            }
+        }
+    }
+    normalized
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, c)| if !removed[i] { Some(c) } else { None })
+        .collect()
+}
