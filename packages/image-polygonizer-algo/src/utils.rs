@@ -9,19 +9,21 @@ pub(crate) fn gy(pts: &[u16], i: usize) -> u16 {
     pts[i * 2 + 1]
 }
 
-pub(crate) fn orient_raw(ax: i32, ay: i32, bx: i32, by: i32, cx: i32, cy: i32) -> i64 {
-    (bx - ax) as i64 * (cy - ay) as i64 - (by - ay) as i64 * (cx - ax) as i64
+pub(crate) fn orient_raw(ax: u16, ay: u16, bx: u16, by: u16, cx: u16, cy: u16) -> i32 {
+    let (dx_ab, dy_ab) = (bx as i16 - ax as i16, by as i16 - ay as i16);
+    let (dx_ac, dy_ac) = (cx as i16 - ax as i16, cy as i16 - ay as i16);
+    dx_ab as i32 * dy_ac as i32 - dy_ab as i32 * dx_ac as i32
 }
 
 #[inline]
-pub(crate) fn orient_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i64 {
+pub(crate) fn orient_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
     orient_raw(
-        gx(pts, a) as i32,
-        gy(pts, a) as i32,
-        gx(pts, b) as i32,
-        gy(pts, b) as i32,
-        gx(pts, c) as i32,
-        gy(pts, c) as i32,
+        gx(pts, a),
+        gy(pts, a),
+        gx(pts, b),
+        gy(pts, b),
+        gx(pts, c),
+        gy(pts, c),
     )
 }
 
@@ -137,14 +139,14 @@ pub(crate) fn triangle_max_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f
 }
 
 pub(crate) fn point_in_triangle_or_on_edge(
-    px: i32,
-    py: i32,
-    ax: i32,
-    ay: i32,
-    bx: i32,
-    by: i32,
-    cx: i32,
-    cy: i32,
+    px: u16,
+    py: u16,
+    ax: u16,
+    ay: u16,
+    bx: u16,
+    by: u16,
+    cx: u16,
+    cy: u16,
 ) -> bool {
     let o1 = orient_raw(ax, ay, bx, by, px, py);
     let o2 = orient_raw(bx, by, cx, cy, px, py);

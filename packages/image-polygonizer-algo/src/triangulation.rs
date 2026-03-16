@@ -157,9 +157,7 @@ fn is_ear(
         if px < min_x || px > max_x || py < min_y || py > max_y {
             continue;
         }
-        if point_in_triangle_or_on_edge(
-            px as i32, py as i32, ax as i32, ay as i32, bx as i32, by as i32, cx as i32, cy as i32,
-        ) {
+        if point_in_triangle_or_on_edge(px, py, ax, ay, bx, by, cx, cy) {
             return false;
         }
     }

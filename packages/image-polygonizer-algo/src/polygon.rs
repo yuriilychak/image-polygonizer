@@ -71,23 +71,25 @@ fn normalize_contour(pts: &[u16]) -> Vec<u16> {
 
 /// cross2: (B-A) × (C-B)
 #[inline]
-fn cross2(ax: i32, ay: i32, bx: i32, by: i32, cx: i32, cy: i32) -> i64 {
-    (bx - ax) as i64 * (cy - by) as i64 - (by - ay) as i64 * (cx - bx) as i64
+fn cross2(ax: u16, ay: u16, bx: u16, by: u16, cx: u16, cy: u16) -> i32 {
+    let (bax, cby) = (bx as i16 - ax as i16, cy as i16 - by as i16);
+    let (bay, cbx) = (by as i16 - ay as i16, cx as i16 - bx as i16);
+    bax as i32 * cby as i32 - bay as i32 * cbx as i32
 }
 
 /// Segment intersection (proper + collinear endpoint cases).
 fn segments_intersect(
-    a0x: i32,
-    a0y: i32,
-    a1x: i32,
-    a1y: i32,
-    b0x: i32,
-    b0y: i32,
-    b1x: i32,
-    b1y: i32,
+    a0x: u16,
+    a0y: u16,
+    a1x: u16,
+    a1y: u16,
+    b0x: u16,
+    b0y: u16,
+    b1x: u16,
+    b1y: u16,
 ) -> bool {
     #[inline]
-    fn sign(v: i64) -> i32 {
+    fn sign(v: i32) -> i8 {
         if v > 0 {
             1
         } else if v < 0 {
@@ -97,7 +99,7 @@ fn segments_intersect(
         }
     }
     #[inline]
-    fn on_seg(ax: i32, ay: i32, bx: i32, by: i32, px: i32, py: i32) -> bool {
+    fn on_seg(ax: u16, ay: u16, bx: u16, by: u16, px: u16, py: u16) -> bool {
         px >= ax.min(bx)
             && px <= ax.max(bx)
             && py >= ay.min(by)
@@ -167,10 +169,10 @@ impl LinkedState {
         }
         let prev = self.prev[curr];
         let next = self.next[curr];
-        let ax = self.px(prev) as i32;
-        let ay = self.py(prev) as i32;
-        let bx = self.px(next) as i32;
-        let by = self.py(next) as i32;
+        let ax = self.px(prev);
+        let ay = self.py(prev);
+        let bx = self.px(next);
+        let by = self.py(next);
         let start = match self.alive.iter().position(|&a| a) {
             Some(s) => s,
             None => return false,
@@ -181,10 +183,10 @@ impl LinkedState {
             let skip =
                 e0 == prev || e1 == prev || e0 == curr || e1 == curr || e0 == next || e1 == next;
             if !skip {
-                let c0x = self.px(e0) as i32;
-                let c0y = self.py(e0) as i32;
-                let c1x = self.px(e1) as i32;
-                let c1y = self.py(e1) as i32;
+                let c0x = self.px(e0);
+                let c0y = self.py(e0);
+                let c1x = self.px(e1);
+                let c1y = self.py(e1);
                 if segments_intersect(ax, ay, bx, by, c0x, c0y, c1x, c1y) {
                     return true;
                 }
@@ -302,20 +304,20 @@ fn rdp_build_arc(n: usize, start: usize, end: usize) -> Vec<usize> {
     arc
 }
 
-fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f64 {
-    let (px, py) = (gx(pts, p) as i32, gy(pts, p) as i32);
-    let (ax, ay) = (gx(pts, a) as i32, gy(pts, a) as i32);
-    let (bx, by) = (gx(pts, b) as i32, gy(pts, b) as i32);
+fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f32 {
+    let (px, py) = (gx(pts, p) as i16, gy(pts, p) as i16);
+    let (ax, ay) = (gx(pts, a) as i16, gy(pts, a) as i16);
+    let (bx, by) = (gx(pts, b) as i16, gy(pts, b) as i16);
     let abx = bx - ax;
     let aby = by - ay;
-    let len_sq = (abx * abx + aby * aby) as f64;
-    if len_sq == 0.0 {
+    let len_sq = abx as i32 * abx as i32 + aby as i32 * aby as i32;
+    if len_sq == 0 {
         let dx = px - ax;
         let dy = py - ay;
-        return (dx * dx + dy * dy) as f64;
+        return (dx as i32 * dx as i32 + dy as i32 * dy as i32) as f32;
     }
-    let cross = (abx * (py - ay) - aby * (px - ax)) as f64;
-    cross * cross / len_sq
+    let cross = abx as i32 * (py - ay) as i32 - aby as i32 * (px - ax) as i32;
+    cross as f32 * cross as f32 / len_sq as f32
 }
 
 fn rdp_simplify_open(pts: &[u16], indices: &[usize], eps_sq: u16) -> Vec<bool> {
@@ -329,7 +331,7 @@ fn rdp_simplify_open(pts: &[u16], indices: &[usize], eps_sq: u16) -> Vec<bool> {
     }
     keep[0] = true;
     keep[n - 1] = true;
-    let eps_sq = eps_sq as f64;
+    let eps_sq = eps_sq as f32;
     let mut stack: Vec<(usize, usize)> = vec![(0, n - 1)];
     while let Some((start, end)) = stack.pop() {
         if end - start <= 1 {
@@ -337,7 +339,7 @@ fn rdp_simplify_open(pts: &[u16], indices: &[usize], eps_sq: u16) -> Vec<bool> {
         }
         let a = indices[start];
         let b = indices[end];
-        let mut max_d = -1.0f64;
+        let mut max_d = -1.0f32;
         let mut max_i = start;
         for i in (start + 1)..end {
             let d = rdp_point_line_dist_sq(pts, indices[i], a, b);
@@ -383,10 +385,10 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
     for ea in 0..m {
         let a0 = kept[ea];
         let a1 = kept[(ea + 1) % m];
-        let a0x = gx(pts, a0) as i32;
-        let a0y = gy(pts, a0) as i32;
-        let a1x = gx(pts, a1) as i32;
-        let a1y = gy(pts, a1) as i32;
+        let a0x = gx(pts, a0);
+        let a0y = gy(pts, a0);
+        let a1x = gx(pts, a1);
+        let a1y = gy(pts, a1);
         for eb in (ea + 1)..m {
             if rdp_is_adjacent(ea, eb, m) {
                 continue;
@@ -400,10 +402,10 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
             {
                 continue;
             }
-            let b0x = gx(pts, b0) as i32;
-            let b0y = gy(pts, b0) as i32;
-            let b1x = gx(pts, b1) as i32;
-            let b1y = gy(pts, b1) as i32;
+            let b0x = gx(pts, b0);
+            let b0y = gy(pts, b0);
+            let b1x = gx(pts, b1);
+            let b1y = gy(pts, b1);
             if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
                 return Some((ea, eb));
             }
@@ -412,9 +414,9 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
     None
 }
 
-fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i64, f64) {
+fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i64, f32) {
     let mut cur = (start + 1) % n;
-    let mut max_d = -1.0f64;
+    let mut max_d = -1.0f32;
     let mut max_p = -1i64;
     while cur != end {
         let d = rdp_point_line_dist_sq(pts, cur, start, end);
@@ -456,7 +458,7 @@ fn rdp_resolve_self_intersections(pts: &[u16], kept: &mut Vec<usize>, eps_sq: u1
 fn rdp_arc_fits_eps(pts: &[u16], n: usize, start: usize, end: usize, eps_sq: u16) -> bool {
     let mut cur = (start + 1) % n;
     while cur != end {
-        if rdp_point_line_dist_sq(pts, cur, start, end) > eps_sq as f64 {
+        if rdp_point_line_dist_sq(pts, cur, start, end) > eps_sq as f32 {
             return false;
         }
         cur = (cur + 1) % n;
@@ -500,14 +502,17 @@ fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
 // ── Step 2: iterative relax+simplify ─────────────────────────────────────────
 
 fn interior_angle_rad(
-    ax: i32,
-    ay: i32,
-    bx: i32,
-    by: i32,
-    cx: i32,
-    cy: i32,
+    ax: u16,
+    ay: u16,
+    bx: u16,
+    by: u16,
+    cx: u16,
+    cy: u16,
     orientation_sign: i8,
 ) -> f32 {
+    let (ax, ay, bx, by, cx, cy) = (
+        ax as i32, ay as i32, bx as i32, by as i32, cx as i32, cy as i32,
+    );
     let v1x = (ax - bx) as f32;
     let v1y = (ay - by) as f32;
     let v2x = (cx - bx) as f32;
@@ -563,9 +568,9 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f32) -> Vec
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
-            let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
-            let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+            let (ax, ay) = (state.px(prev), state.py(prev));
+            let (bx, by) = (state.px(curr), state.py(curr));
+            let (cx, cy) = (state.px(next), state.py(next));
             let cross = cross2(ax, ay, bx, by, cx, cy);
             let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
             if !is_concave {
@@ -624,9 +629,9 @@ fn remove_obtuse_humps(
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
-            let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
-            let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+            let (ax, ay) = (state.px(prev), state.py(prev));
+            let (bx, by) = (state.px(curr), state.py(curr));
+            let (cx, cy) = (state.px(next), state.py(next));
             let cross = cross2(ax, ay, bx, by, cx, cy);
             let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
@@ -661,9 +666,9 @@ fn iterative_relax_and_simplify(
     if current.len() / 2 <= 3 {
         return current;
     }
-    let mut prev_count: i64 = -1;
+    let mut prev_count: i32 = -1;
     loop {
-        let cnt = (current.len() / 2) as i64;
+        let cnt = (current.len() / 2) as i32;
         if cnt == prev_count {
             return current;
         }
@@ -693,24 +698,24 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             Some(s) => s,
             None => break,
         };
-        let mut best_idx: i64 = -1;
-        let mut best_area = f64::INFINITY;
+        let mut best_idx: i32 = -1;
+        let mut best_area = f32::INFINITY;
         let mut cur = start;
         loop {
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
-                let (bx, by) = (state.px(cur) as i32, state.py(cur) as i32);
-                let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+                let (ax, ay) = (state.px(prev), state.py(prev));
+                let (bx, by) = (state.px(cur), state.py(cur));
+                let (cx, cy) = (state.px(next), state.py(next));
                 let cross = cross2(ax, ay, bx, by, cx, cy);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave {
-                    let area = cross.abs() as f64 * 0.5;
+                    let area = cross.abs() as f32 * 0.5;
                     if area < best_area && !state.would_create_self_intersection_after_removal(cur)
                     {
                         best_area = area;
-                        best_idx = cur as i64;
+                        best_idx = cur as i32;
                     }
                 }
             }
@@ -750,7 +755,7 @@ fn map_simplified_to_original_indices(original: &[u16], simplified: &[u16]) -> O
         let mut ok = true;
         for i in 1..ns {
             let candidates = &matches[i];
-            let mut best: i64 = -1;
+            let mut best: i32 = -1;
             let mut best_fwd = no + 1;
             for &idx in candidates {
                 let fwd = if idx > prev {
@@ -760,7 +765,7 @@ fn map_simplified_to_original_indices(original: &[u16], simplified: &[u16]) -> O
                 };
                 if fwd > 0 && fwd < best_fwd {
                     best_fwd = fwd;
-                    best = idx as i64;
+                    best = idx as i32;
                 }
             }
             if best < 0 {
@@ -932,9 +937,9 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
     for i in 0..n {
         let prev = (i + n - 1) % n;
         let next = (i + 1) % n;
-        let (ax, ay) = (gx(&norm, prev) as i32, gy(&norm, prev) as i32);
-        let (bx, by) = (gx(&norm, i) as i32, gy(&norm, i) as i32);
-        let (cx, cy) = (gx(&norm, next) as i32, gy(&norm, next) as i32);
+        let (ax, ay) = (gx(&norm, prev), gy(&norm, prev));
+        let (bx, by) = (gx(&norm, i), gy(&norm, i));
+        let (cx, cy) = (gx(&norm, next), gy(&norm, next));
         let cross = orient_raw(ax, ay, bx, by, cx, cy);
         let between = bx >= ax.min(cx) && bx <= ax.max(cx) && by >= ay.min(cy) && by <= ay.max(cy);
         if cross != 0 || !between {
@@ -953,33 +958,30 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
 }
 
 struct SlidingPoly {
-    pts: Vec<i32>,
+    pts: Vec<u16>,
 }
 
 impl SlidingPoly {
     fn new(cover: &[u16]) -> Self {
-        let n = cover.len() / 2;
-        let mut pts = vec![0i32; n * 2];
-        for i in 0..cover.len() {
-            pts[i] = cover[i] as i32;
+        SlidingPoly {
+            pts: cover.to_vec(),
         }
-        SlidingPoly { pts }
     }
     fn count(&self) -> usize {
         self.pts.len() / 2
     }
-    fn px(&self, i: usize) -> i32 {
+    fn px(&self, i: usize) -> u16 {
         self.pts[i * 2]
     }
-    fn py(&self, i: usize) -> i32 {
+    fn py(&self, i: usize) -> u16 {
         self.pts[i * 2 + 1]
     }
     fn set(&mut self, i: usize, x: i32, y: i32) {
-        self.pts[i * 2] = x;
-        self.pts[i * 2 + 1] = y;
+        self.pts[i * 2] = x as u16;
+        self.pts[i * 2 + 1] = y as u16;
     }
-    fn mod_idx(&self, i: i64) -> usize {
-        let n = self.count() as i64;
+    fn mod_idx(&self, i: i32) -> usize {
+        let n = self.count() as i32;
         ((i % n + n) % n) as usize
     }
     fn signed_area(&self) -> f64 {
@@ -987,15 +989,13 @@ impl SlidingPoly {
         let mut sum = 0.0f64;
         for i in 0..n {
             let j = (i + 1) % n;
-            sum += self.px(i) as f64 * self.py(j) as f64 - self.px(j) as f64 * self.py(i) as f64;
+            sum += self.px(i) as i32 as f64 * self.py(j) as i32 as f64
+                - self.px(j) as i32 as f64 * self.py(i) as i32 as f64;
         }
         sum * 0.5
     }
     fn to_u16(&self) -> Vec<u16> {
-        self.pts
-            .iter()
-            .map(|&v| v.max(0).min(65535) as u16)
-            .collect()
+        self.pts.iter().map(|&v| v as u16).collect()
     }
 }
 
@@ -1035,8 +1035,8 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (poly.px(i), poly.py(i));
-        let (xj, yj) = (poly.px(j), poly.py(j));
+        let (xi, yi) = (poly.px(i) as i32, poly.py(i) as i32);
+        let (xj, yj) = (poly.px(j) as i32, poly.py(j) as i32);
         if point_on_seg_i32(xj, yj, xi, yi, px, py) {
             return true;
         }
@@ -1053,8 +1053,8 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
 
 fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) -> bool {
     let n = poly.count();
-    let i0 = poly.mod_idx(i1 as i64 - 1);
-    let i3 = poly.mod_idx(i2 as i64 + 1);
+    let i0 = poly.mod_idx(i1 as i32 - 1);
+    let i3 = poly.mod_idx(i2 as i32 + 1);
     let changed = [(i0, i1), (i1, i2), (i2, i3)];
     fn shares(a0: usize, a1: usize, b0: usize, b1: usize) -> bool {
         a0 == b0 || a0 == b1 || a1 == b0 || a1 == b1
@@ -1140,12 +1140,18 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
     if count < 4 {
         return false;
     }
-    let i0 = poly.mod_idx(edge_start as i64 - 1);
+    let i0 = poly.mod_idx(edge_start as i32 - 1);
     let i1 = edge_start;
-    let i2 = poly.mod_idx(edge_start as i64 + 1);
-    let i3 = poly.mod_idx(edge_start as i64 + 2);
-    let dir_a = primitive_dir(poly.px(i1) - poly.px(i0), poly.py(i1) - poly.py(i0));
-    let dir_b = primitive_dir(poly.px(i2) - poly.px(i3), poly.py(i2) - poly.py(i3));
+    let i2 = poly.mod_idx(edge_start as i32 + 1);
+    let i3 = poly.mod_idx(edge_start as i32 + 2);
+    let dir_a = primitive_dir(
+        poly.px(i1) as i32 - poly.px(i0) as i32,
+        poly.py(i1) as i32 - poly.py(i0) as i32,
+    );
+    let dir_b = primitive_dir(
+        poly.px(i2) as i32 - poly.px(i3) as i32,
+        poly.py(i2) as i32 - poly.py(i3) as i32,
+    );
     if dir_a == (0, 0) || dir_b == (0, 0) {
         return false;
     }
@@ -1164,8 +1170,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         let cur_area = poly.signed_area().abs();
         let mut best_area = cur_area;
         let mut best_step: Option<(i32, i32)> = None;
-        let (old_ax, old_ay) = (poly.px(i1), poly.py(i1));
-        let (old_bx, old_by) = (poly.px(i2), poly.py(i2));
+        let (old_ax, old_ay) = (poly.px(i1) as i32, poly.py(i1) as i32);
+        let (old_bx, old_by) = (poly.px(i2) as i32, poly.py(i2) as i32);
         for &(sa, sb) in &steps {
             let ax = old_ax + dir_a.0 * sa;
             let ay = old_ay + dir_a.1 * sa;
@@ -1185,8 +1191,22 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             }
             let area = poly.signed_area().abs();
             if area < best_area {
-                let xs = [poly.px(i0), ax, bx, poly.px(i3), old_ax, old_bx];
-                let ys = [poly.py(i0), ay, by, poly.py(i3), old_ay, old_by];
+                let xs = [
+                    poly.px(i0) as i32,
+                    ax,
+                    bx,
+                    poly.px(i3) as i32,
+                    old_ax,
+                    old_bx,
+                ];
+                let ys = [
+                    poly.py(i0) as i32,
+                    ay,
+                    by,
+                    poly.py(i3) as i32,
+                    old_ay,
+                    old_by,
+                ];
                 let min_x = xs.iter().copied().min().unwrap() - 2;
                 let max_x = xs.iter().copied().max().unwrap() + 2;
                 let min_y = ys.iter().copied().min().unwrap() - 2;
@@ -1204,8 +1224,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         };
         let mut moved = false;
         loop {
-            let (cur_ax, cur_ay) = (poly.px(i1), poly.py(i1));
-            let (cur_bx, cur_by) = (poly.px(i2), poly.py(i2));
+            let (cur_ax, cur_ay) = (poly.px(i1) as i32, poly.py(i1) as i32);
+            let (cur_bx, cur_by) = (poly.px(i2) as i32, poly.py(i2) as i32);
             let next_ax = cur_ax + dir_a.0 * sa;
             let next_ay = cur_ay + dir_a.1 * sa;
             let next_bx = cur_bx + dir_b.0 * sb;
@@ -1223,8 +1243,22 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 poly.set(i2, cur_bx, cur_by);
                 break;
             }
-            let xs = [poly.px(i0), next_ax, next_bx, poly.px(i3), cur_ax, cur_bx];
-            let ys = [poly.py(i0), next_ay, next_by, poly.py(i3), cur_ay, cur_by];
+            let xs = [
+                poly.px(i0) as i32,
+                next_ax,
+                next_bx,
+                poly.px(i3) as i32,
+                cur_ax,
+                cur_bx,
+            ];
+            let ys = [
+                poly.py(i0) as i32,
+                next_ay,
+                next_by,
+                poly.py(i3) as i32,
+                cur_ay,
+                cur_by,
+            ];
             let min_x = xs.iter().copied().min().unwrap() - 2;
             let max_x = xs.iter().copied().max().unwrap() + 2;
             let min_y = ys.iter().copied().min().unwrap() - 2;
@@ -1298,13 +1332,13 @@ fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
     (min_x, min_y, max_x, max_y)
 }
 
-fn pg_point_in_poly_or_edge(poly: &[u16], px: i32, py: i32) -> bool {
+fn pg_point_in_poly_or_edge(poly: &[u16], px: u16, py: u16) -> bool {
     let n = poly.len() / 2;
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (gx(poly, i) as i32, gy(poly, i) as i32);
-        let (xj, yj) = (gx(poly, j) as i32, gy(poly, j) as i32);
+        let (xi, yi) = (gx(poly, i), gy(poly, i));
+        let (xj, yj) = (gx(poly, j), gy(poly, j));
         if orient_raw(xj, yj, xi, yi, px, py) == 0
             && px >= xj.min(xi)
             && px <= xj.max(xi)
@@ -1316,9 +1350,10 @@ fn pg_point_in_poly_or_edge(poly: &[u16], px: i32, py: i32) -> bool {
         if (yi > py) != (yj > py) {
             // Integer winding test: px <= (xj - xi) * (py - yi) / (yj - yi) + xi
             // Multiply through by dy = (yj - yi), flip <= when dy < 0.
-            let dy = (yj - yi) as i64;
+            let dy = (yj as i32 - yi as i32) as i64;
             let lhs = px as i64 * dy;
-            let rhs = (xj - xi) as i64 * (py - yi) as i64 + xi as i64 * dy;
+            let rhs =
+                (xj as i32 - xi as i32) as i64 * (py as i32 - yi as i32) as i64 + xi as i64 * dy;
             if (dy > 0 && lhs <= rhs) || (dy < 0 && lhs >= rhs) {
                 inside = !inside;
             }
@@ -1333,20 +1368,11 @@ fn pg_contours_intersect(a: &[u16], b: &[u16]) -> bool {
     let nb = b.len() / 2;
     for i in 0..na {
         let i2 = (i + 1) % na;
-        let (a0x, a0y) = (gx(a, i) as i32, gy(a, i) as i32);
-        let (a1x, a1y) = (gx(a, i2) as i32, gy(a, i2) as i32);
+        let (a0x, a0y) = (gx(a, i), gy(a, i));
+        let (a1x, a1y) = (gx(a, i2), gy(a, i2));
         for j in 0..nb {
             let j2 = (j + 1) % nb;
-            if segments_intersect(
-                a0x,
-                a0y,
-                a1x,
-                a1y,
-                gx(b, j) as i32,
-                gy(b, j) as i32,
-                gx(b, j2) as i32,
-                gy(b, j2) as i32,
-            ) {
+            if segments_intersect(a0x, a0y, a1x, a1y, gx(b, j), gy(b, j), gx(b, j2), gy(b, j2)) {
                 return true;
             }
         }
@@ -1361,7 +1387,7 @@ fn pg_is_inside(inner: &[u16], outer: &[u16]) -> bool {
     if pg_contours_intersect(inner, outer) {
         return false;
     }
-    pg_point_in_poly_or_edge(outer, gx(inner, 0) as i32, gy(inner, 0) as i32)
+    pg_point_in_poly_or_edge(outer, gx(inner, 0), gy(inner, 0))
 }
 
 pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
