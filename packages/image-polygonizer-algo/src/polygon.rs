@@ -29,9 +29,9 @@ pub(crate) fn contour_to_polygon(
     let step2 = iterative_relax_and_simplify(
         &step1,
         0.008,
-        170.0_f64.to_radians(),
-        260.0_f64.to_radians(),
-        120.0_f64.to_radians(),
+        170.0_f32.to_radians(),
+        260.0_f32.to_radians(),
+        120.0_f32.to_radians(),
         min_distance,
     );
 
@@ -507,11 +507,11 @@ fn interior_angle_rad(
     cx: i32,
     cy: i32,
     orientation_sign: i8,
-) -> f64 {
-    let v1x = (ax - bx) as f64;
-    let v1y = (ay - by) as f64;
-    let v2x = (cx - bx) as f64;
-    let v2y = (cy - by) as f64;
+) -> f32 {
+    let v1x = (ax - bx) as f32;
+    let v1y = (ay - by) as f32;
+    let v2x = (cx - bx) as f32;
+    let v2y = (cy - by) as f32;
     let l1 = (v1x * v1x + v1y * v1y).sqrt();
     let l2 = (v2x * v2x + v2y * v2y).sqrt();
     if l1 == 0.0 || l2 == 0.0 {
@@ -526,11 +526,11 @@ fn interior_angle_rad(
     if is_convex {
         small_angle
     } else {
-        2.0 * std::f64::consts::PI - small_angle
+        2.0 * std::f32::consts::PI - small_angle
     }
 }
 
-fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec<u16> {
+fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f32) -> Vec<u16> {
     let normalized = normalize_contour(&pts);
     let n = normalized.len() / 2;
     if n <= 3 {
@@ -589,8 +589,8 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec
 fn remove_obtuse_humps(
     pts: Vec<u16>,
     percentage: f64,
-    angle_threshold_rad: f64,
-    pick_angle_rad: f64,
+    angle_threshold_rad: f32,
+    pick_angle_rad: f32,
 ) -> Vec<u16> {
     let normalized = normalize_contour(&pts);
     let n = normalized.len() / 2;
@@ -652,9 +652,9 @@ fn remove_obtuse_humps(
 fn iterative_relax_and_simplify(
     contour: &[u16],
     percentage: f64,
-    angle_rad: f64,
-    hole_angle_rad: f64,
-    pick_angle_rad: f64,
+    angle_rad: f32,
+    hole_angle_rad: f32,
+    pick_angle_rad: f32,
     epsilon: u8,
 ) -> Vec<u16> {
     let mut current = normalize_contour(contour);

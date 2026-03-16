@@ -14,8 +14,9 @@ fn ms_clr(b: &mut [u8], i: usize) {
 }
 
 #[inline]
-fn sq_val(bits: &[u8], w: usize, x: i32, y: i32) -> u8 {
+fn sq_val(bits: &[u8], w: usize, x: i16, y: i16) -> u8 {
     let w = w as i32;
+    let (x, y) = (x as i32, y as i32);
     let o1 = ms_get(bits, ((y - 1) * w + (x - 1)) as usize) as u8;
     let o2 = ms_get(bits, ((y - 1) * w + x) as usize) as u8;
     let o4 = ms_get(bits, (y * w + (x - 1)) as usize) as u8;
@@ -23,7 +24,7 @@ fn sq_val(bits: &[u8], w: usize, x: i32, y: i32) -> u8 {
     o1 | (o2 << 1) | (o4 << 2) | (o8 << 3)
 }
 
-fn find_seed(bits: &[u8], w: usize, x0: i32, y0: i32, x1: i32, y1: i32) -> Option<(i32, i32)> {
+fn find_seed(bits: &[u8], w: usize, x0: i16, y0: i16, x1: i16, y1: i16) -> Option<(i16, i16)> {
     for y in y0..=y1 {
         for x in x0..=x1 {
             if ms_get(bits, y as usize * w + x as usize) {
@@ -40,8 +41,8 @@ fn collect_and_clear(
     bits: &mut Vec<u8>,
     w: usize,
     h: usize,
-    seed: (i32, i32),
-) -> (Vec<u32>, (i32, i32)) {
+    seed: (i16, i16),
+) -> (Vec<u32>, (i16, i16)) {
     let seed_idx = seed.1 as usize * w + seed.0 as usize;
     if !ms_get(bits, seed_idx) {
         return (Vec::new(), (0, 0));
@@ -57,8 +58,8 @@ fn collect_and_clear(
 
     while let Some(idx) = stack.pop() {
         let i = idx as usize;
-        let y = (i / w) as i32;
-        let x = (i - y as usize * w) as i32;
+        let y = (i / w) as i16;
+        let x = (i - y as usize * w) as i16;
 
         if x < left.0 || (x == left.0 && y < left.1) {
             left = (x, y);
@@ -77,13 +78,13 @@ fn collect_and_clear(
         if x > 0 {
             try_nb!(i - 1);
         }
-        if x + 1 < w as i32 {
+        if x + 1 < w as i16 {
             try_nb!(i + 1);
         }
         if y > 0 {
             try_nb!(i - w);
         }
-        if y + 1 < h as i32 {
+        if y + 1 < h as i16 {
             try_nb!(i + w);
         }
     }
@@ -91,17 +92,17 @@ fn collect_and_clear(
     (list, left)
 }
 
-const START_OFF: [(i32, i32); 4] = [(0, 0), (1, 0), (0, 1), (1, 1)];
+const START_OFF: [(i16, i16); 4] = [(0, 0), (1, 0), (0, 1), (1, 1)];
 
 fn find_start_sq(
     bits: &[u8],
     w: usize,
-    x0: i32,
-    y0: i32,
-    x1: i32,
-    y1: i32,
-    p: (i32, i32),
-) -> Option<(i32, i32)> {
+    x0: i16,
+    y0: i16,
+    x1: i16,
+    y1: i16,
+    p: (i16, i16),
+) -> Option<(i16, i16)> {
     for (dx, dy) in &START_OFF {
         let (sx, sy) = (p.0 + dx, p.1 + dy);
         if sx < x0 || sy < y0 || sx > x1 || sy > y1 {
@@ -113,12 +114,12 @@ fn find_start_sq(
         }
     }
     // small local fallback
-    for dy in -8i32..=8 {
+    for dy in -8i16..=8 {
         let sy = p.1 + dy;
         if sy < y0 || sy > y1 {
             continue;
         }
-        for dx in -8i32..=8 {
+        for dx in -8i16..=8 {
             let sx = p.0 + dx;
             if sx < x0 || sx > x1 {
                 continue;
@@ -136,12 +137,12 @@ fn march(
     bits: &[u8],
     w: usize,
     h: usize,
-    pad: i32,
-    x0: i32,
-    y0: i32,
-    x1: i32,
-    y1: i32,
-    start: (i32, i32),
+    pad: i16,
+    x0: i16,
+    y0: i16,
+    x1: i16,
+    y1: i16,
+    start: (i16, i16),
     max_steps: usize,
 ) -> Vec<u16> {
     let toggle_bytes = (w * h + 7) >> 3;
@@ -149,7 +150,7 @@ fn march(
     let mut t6 = vec![0u8; toggle_bytes];
 
     let mut out: Vec<u16> = Vec::with_capacity(512);
-    let mut prev_step: (i32, i32) = (2, 2); // sentinel — can't be a real step
+    let mut prev_step: (i16, i16) = (2, 2); // sentinel — can't be a real step
     let mut cur = start;
 
     for _ in 0..max_steps {
@@ -159,7 +160,7 @@ fn march(
 
         let sv = sq_val(bits, w, cur.0, cur.1);
 
-        let step: (i32, i32) = match sv {
+        let step: (i16, i16) = match sv {
             1 | 5 | 13 => (0, -1),
             8 | 10 | 11 => (0, 1),
             4 | 12 | 14 => (-1, 0),
@@ -224,7 +225,7 @@ pub(crate) fn extract_all_outer_contours(
 ) -> Vec<Vec<u16>> {
     let w = width as usize;
     let h = height as usize;
-    let pad = padding as i32;
+    let pad = padding as i16;
 
     let byte_count = (w * h + 7) >> 3;
     let mut bits = vec![0u8; byte_count];
@@ -233,8 +234,8 @@ pub(crate) fn extract_all_outer_contours(
 
     let x0 = pad;
     let y0 = pad;
-    let x1 = (w as i32) - 1 - pad;
-    let y1 = (h as i32) - 1 - pad;
+    let x1 = w as i16 - 1 - pad;
+    let y1 = h as i16 - 1 - pad;
     let max_steps = w * h * 4;
 
     let mut contours: Vec<Vec<u16>> = Vec::new();
