@@ -28,7 +28,7 @@ pub(crate) fn contour_to_polygon(
     // ── step 2: iterative relax+simplify ─────────────────────────────────────
     let step2 = iterative_relax_and_simplify(
         &step1,
-        0.008,
+        0.008_f32,
         170.0_f32.to_radians(),
         260.0_f32.to_radians(),
         120.0_f32.to_radians(),
@@ -150,8 +150,8 @@ impl LinkedState {
         gy(&self.pts, i)
     }
 
-    fn signed_area(&self) -> f64 {
-        polygon_signed_area(&self.materialize())
+    fn signed_area(&self) -> f32 {
+        polygon_signed_area(&self.materialize()) as f32
     }
 
     fn remove(&mut self, idx: usize) {
@@ -535,7 +535,7 @@ fn interior_angle_rad(
     }
 }
 
-fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f32) -> Vec<u16> {
+fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec<u16> {
     let normalized = normalize_contour(&pts);
     let n = normalized.len() / 2;
     if n <= 3 {
@@ -576,7 +576,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f32) -> Vec
             if !is_concave {
                 continue;
             }
-            let pit_area = cross.abs() as f64 * 0.5;
+            let pit_area = cross.abs() as f32 * 0.5;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             if pit_area > threshold && angle <= hole_angle_rad {
                 continue;
@@ -593,7 +593,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f32) -> Vec
 
 fn remove_obtuse_humps(
     pts: Vec<u16>,
-    percentage: f64,
+    percentage: f32,
     angle_threshold_rad: f32,
     pick_angle_rad: f32,
 ) -> Vec<u16> {
@@ -637,7 +637,7 @@ fn remove_obtuse_humps(
             if !is_convex {
                 continue;
             }
-            let hump_area = cross.abs() as f64 * 0.5;
+            let hump_area = cross.abs() as f32 * 0.5;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             let remove_by_angle = angle > angle_threshold_rad;
             let remove_by_area = angle > pick_angle_rad && hump_area <= threshold;
@@ -656,7 +656,7 @@ fn remove_obtuse_humps(
 
 fn iterative_relax_and_simplify(
     contour: &[u16],
-    percentage: f64,
+    percentage: f32,
     angle_rad: f32,
     hole_angle_rad: f32,
     pick_angle_rad: f32,
@@ -795,15 +795,15 @@ fn compute_arc_max_offset(
     no: usize,
     start: usize,
     end: usize,
-    nx: f64,
-    ny: f64,
-    c0: f64,
-) -> f64 {
-    let mut delta = 0.0f64;
+    nx: f32,
+    ny: f32,
+    c0: f32,
+) -> f32 {
+    let mut delta = 0.0f32;
     let mut k = start;
     for _ in 0..=no {
-        let px = gx(original, k) as f64;
-        let py = gy(original, k) as f64;
+        let px = gx(original, k) as f32;
+        let py = gy(original, k) as f32;
         let val = nx * px + ny * py + c0;
         if val > delta {
             delta = val;
@@ -816,9 +816,9 @@ fn compute_arc_max_offset(
     delta
 }
 
-fn intersect_lines(a1: f64, b1: f64, c1: f64, a2: f64, b2: f64, c2: f64) -> Option<(f64, f64)> {
+fn intersect_lines(a1: f32, b1: f32, c1: f32, a2: f32, b2: f32, c2: f32) -> Option<(f32, f32)> {
     let det = a1 * b2 - a2 * b1;
-    if det.abs() < 1e-12 {
+    if det.abs() < 1e-6 {
         return None;
     }
     let x = (b1 * c2 - b2 * c1) / det;
@@ -826,21 +826,21 @@ fn intersect_lines(a1: f64, b1: f64, c1: f64, a2: f64, b2: f64, c2: f64) -> Opti
     Some((x, y))
 }
 
-fn snap_conservative(fx: f64, fy: f64, la: (f64, f64, f64), lb: (f64, f64, f64)) -> (f64, f64) {
+fn snap_conservative(fx: f32, fy: f32, la: (f32, f32, f32), lb: (f32, f32, f32)) -> (f32, f32) {
     let cx = fx.round() as i32;
     let cy = fy.round() as i32;
     let mut best_x = cx;
     let mut best_y = cy;
-    let mut best_d = f64::INFINITY;
+    let mut best_d = f32::INFINITY;
     for radius in 0i32..=16 {
         let mut found = false;
         for dy in -radius..=radius {
             for dx in -radius..=radius {
                 let (x, y) = (cx + dx, cy + dy);
-                if la.0 * x as f64 + la.1 * y as f64 + la.2 <= 1e-9
-                    && lb.0 * x as f64 + lb.1 * y as f64 + lb.2 <= 1e-9
+                if la.0 * x as f32 + la.1 * y as f32 + la.2 <= 1e-4
+                    && lb.0 * x as f32 + lb.1 * y as f32 + lb.2 <= 1e-4
                 {
-                    let d = (x as f64 - fx).powi(2) + (y as f64 - fy).powi(2);
+                    let d = (x as f32 - fx).powi(2) + (y as f32 - fy).powi(2);
                     if d < best_d {
                         best_d = d;
                         best_x = x;
@@ -851,24 +851,24 @@ fn snap_conservative(fx: f64, fy: f64, la: (f64, f64, f64), lb: (f64, f64, f64))
             }
         }
         if found {
-            return (best_x as f64, best_y as f64);
+            return (best_x as f32, best_y as f32);
         }
     }
     let (nx, ny) = (la.0 + lb.0, la.1 + lb.1);
     let len = (nx * nx + ny * ny).sqrt();
-    if len > 1e-12 {
+    if len > 1e-6 {
         let (ux, uy) = (nx / len, ny / len);
         for t in 0..=64i32 {
-            let x = (fx + ux * t as f64).round() as i32;
-            let y = (fy + uy * t as f64).round() as i32;
-            if la.0 * x as f64 + la.1 * y as f64 + la.2 <= 1e-9
-                && lb.0 * x as f64 + lb.1 * y as f64 + lb.2 <= 1e-9
+            let x = (fx + ux * t as f32).round() as i32;
+            let y = (fy + uy * t as f32).round() as i32;
+            if la.0 * x as f32 + la.1 * y as f32 + la.2 <= 1e-4
+                && lb.0 * x as f32 + lb.1 * y as f32 + lb.2 <= 1e-4
             {
-                return (x as f64, y as f64);
+                return (x as f32, y as f32);
             }
         }
     }
-    (cx as f64, cy as f64)
+    (cx as f32, cy as f32)
 }
 
 fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
@@ -880,17 +880,17 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         return simp;
     }
 
-    let orientation = polygon_signed_area(&simp);
+    let orientation = polygon_signed_area(&simp) as f32;
     let orig_indices = match map_simplified_to_original_indices(&orig, &simp) {
         Some(v) => v,
         None => return simp,
     };
 
-    let mut lines: Vec<(f64, f64, f64)> = Vec::with_capacity(ns);
+    let mut lines: Vec<(f32, f32, f32)> = Vec::with_capacity(ns);
     for i in 0..ns {
         let j = (i + 1) % ns;
-        let (ax, ay) = (gx(&simp, i) as f64, gy(&simp, i) as f64);
-        let (bx, by) = (gx(&simp, j) as f64, gy(&simp, j) as f64);
+        let (ax, ay) = (gx(&simp, i) as f32, gy(&simp, i) as f32);
+        let (bx, by) = (gx(&simp, j) as f32, gy(&simp, j) as f32);
         let dx = bx - ax;
         let dy = by - ay;
         let len = (dx * dx + dy * dy).sqrt();
@@ -915,7 +915,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         let (x, y) = match intersect_lines(la.0, la.1, la.2, lb.0, lb.1, lb.2) {
             Some((ix, iy)) => snap_conservative(ix, iy, la, lb),
             None => {
-                let (sx, sy) = (gx(&simp, i) as f64, gy(&simp, i) as f64);
+                let (sx, sy) = (gx(&simp, i) as f32, gy(&simp, i) as f32);
                 snap_conservative(sx, sy, la, lb)
             }
         };
@@ -984,13 +984,13 @@ impl SlidingPoly {
         let n = self.count() as i32;
         ((i % n + n) % n) as usize
     }
-    fn signed_area(&self) -> f64 {
+    fn signed_area(&self) -> f32 {
         let n = self.count();
-        let mut sum = 0.0f64;
+        let mut sum = 0.0f32;
         for i in 0..n {
             let j = (i + 1) % n;
-            sum += self.px(i) as i32 as f64 * self.py(j) as i32 as f64
-                - self.px(j) as i32 as f64 * self.py(i) as i32 as f64;
+            sum += self.px(i) as i32 as f32 * self.py(j) as i32 as f32
+                - self.px(j) as i32 as f32 * self.py(i) as i32 as f32;
         }
         sum * 0.5
     }
@@ -1041,8 +1041,8 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
             return true;
         }
         if (yi > py) != (yj > py) {
-            let t = (xj - xi) as f64 * (py - yi) as f64 / (yj - yi) as f64 + xi as f64;
-            if (px as f64) <= t {
+            let t = (xj - xi) as f32 * (py - yi) as f32 / (yj - yi) as f32 + xi as f32;
+            if (px as f32) <= t {
                 inside = !inside;
             }
         }
@@ -1400,9 +1400,9 @@ pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
         .map(|c| normalize_contour(&c))
         .collect();
     let bboxes: Vec<(u16, u16, u16, u16)> = normalized.iter().map(|c| pg_contour_bbox(c)).collect();
-    let areas: Vec<f64> = normalized
+    let areas: Vec<f32> = normalized
         .iter()
-        .map(|c| polygon_signed_area(c).abs())
+        .map(|c| polygon_signed_area(c).abs() as f32)
         .collect();
     let mut removed = vec![false; n];
     for i in 0..n {
