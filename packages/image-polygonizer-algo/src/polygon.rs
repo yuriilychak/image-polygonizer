@@ -1,6 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{gx, gy, orient_raw, polygon_signed_area};
+use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -90,22 +90,10 @@ fn cross2_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
 }
 
 #[inline]
-fn dist2i_poly(pts: &[u16], a: usize, b: usize) -> i32 {
-    dist2i(gx(pts, a), gy(pts, a), gx(pts, b), gy(pts, b))
-}
-
-#[inline]
 fn dist2(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     let dx = x2 - x1;
     let dy = y2 - y1;
     dx * dx + dy * dy
-}
-
-#[inline]
-fn dist2i(x1: u16, y1: u16, x2: u16, y2: u16) -> i32 {
-    let dx = x2 as i16 - x1 as i16;
-    let dy = y2 as i16 - y1 as i16;
-    dx as i32 * dx as i32 + dy as i32 * dy as i32
 }
 
 /// Segment intersection (proper + collinear endpoint cases).
@@ -182,7 +170,7 @@ impl LinkedState {
     }
 
     fn signed_area(&self) -> f32 {
-        polygon_signed_area(&self.materialize()) as f32
+        polygon_signed_area(&self.materialize())
     }
 
     fn remove(&mut self, idx: usize) {
@@ -900,7 +888,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         return simp;
     }
 
-    let orientation = polygon_signed_area(&simp) as f32;
+    let orientation = polygon_signed_area(&simp);
     let orig_indices = match map_simplified_to_original_indices(&orig, &simp) {
         Some(v) => v,
         None => return simp,

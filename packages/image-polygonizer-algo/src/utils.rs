@@ -27,24 +27,38 @@ pub(crate) fn orient_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
     )
 }
 
-pub(crate) fn polygon_signed_area(pts: &[u16]) -> f64 {
+#[inline]
+pub(crate) fn dist2i(x1: u16, y1: u16, x2: u16, y2: u16) -> i32 {
+    let dx = x2 as i16 - x1 as i16;
+    let dy = y2 as i16 - y1 as i16;
+    dx as i32 * dx as i32 + dy as i32 * dy as i32
+}
+
+#[inline]
+pub(crate) fn dist2i_poly(pts: &[u16], a: usize, b: usize) -> i32 {
+    dist2i(gx(pts, a), gy(pts, a), gx(pts, b), gy(pts, b))
+}
+
+pub(crate) fn polygon_signed_area(pts: &[u16]) -> f32 {
     #[cfg(target_arch = "wasm32")]
     // SAFETY: simd128 is enabled globally via .cargo/config.toml for wasm32
-    return unsafe { polygon_signed_area_simd(pts) };
+    let sum = unsafe { polygon_signed_area_simd(pts) };
 
     #[cfg(not(target_arch = "wasm32"))]
-    polygon_signed_area_scalar(pts)
+    let sum = polygon_signed_area_scalar(pts);
+
+    sum as f32 * 0.5
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn polygon_signed_area_scalar(pts: &[u16]) -> f64 {
+fn polygon_signed_area_scalar(pts: &[u16]) -> i32 {
     let n = pts.len() / 2;
-    let mut sum = 0i64;
+    let mut sum = 0i32;
     for i in 0..n {
         let j = (i + 1) % n;
-        sum += gx(pts, i) as i64 * gy(pts, j) as i64 - gx(pts, j) as i64 * gy(pts, i) as i64;
+        sum += gx(pts, i) as i32 * gy(pts, j) as i32 - gx(pts, j) as i32 * gy(pts, i) as i32;
     }
-    sum as f64 * 0.5
+    sum
 }
 
 // ── SIMD implementation (wasm32 simd128) ─────────────────────────────────────
@@ -55,19 +69,18 @@ fn polygon_signed_area_scalar(pts: &[u16]) -> f64 {
 //   terms = [-y0·x1, x0·y1, -y1·x2, x1·y2]    (i32x4 via extmul_low, exact)
 //   sum   = (x0·y1 - y0·x1) + (x1·y2 - y1·x2) ← two shoelace cross terms
 //
-// Accumulation in i32x4 is safe: coords ≤ 2048, so |term| ≤ 2048² = 4M,
-// well within i32 range even for large polygons at this image scale.
-// Widening to i64 only at the final horizontal sum.
+// All coords < 4096, so |term| ≤ 4096² ≈ 16M, well within i32 range.
+// Accumulation stays in i32 throughout — no i64 widening needed.
 // If n is odd the final edge (vertex n-1 → vertex 0) is handled in scalar.
 
 #[cfg(target_arch = "wasm32")]
 #[target_feature(enable = "simd128")]
-unsafe fn polygon_signed_area_simd(pts: &[u16]) -> f64 {
+unsafe fn polygon_signed_area_simd(pts: &[u16]) -> i32 {
     use core::arch::wasm32::*;
 
     let n = pts.len() / 2;
     if n < 3 {
-        return 0.0;
+        return 0;
     }
 
     let len = pts.len(); // 2*n
@@ -92,25 +105,31 @@ unsafe fn polygon_signed_area_simd(pts: &[u16]) -> f64 {
         acc = i32x4_add(acc, terms);
     }
 
-    // Widen to i64 only for the final horizontal sum to avoid any overflow there
-    let lo = i64x2_extend_low_i32x4(acc);
-    let hi = i64x2_extend_high_i32x4(acc);
-    let mut sum = i64x2_extract_lane::<0>(lo)
-        + i64x2_extract_lane::<1>(lo)
-        + i64x2_extract_lane::<0>(hi)
-        + i64x2_extract_lane::<1>(hi);
+    // Horizontal sum in i32 — safe because coords < 4096
+    let mut sum = i32x4_extract_lane::<0>(acc)
+        + i32x4_extract_lane::<1>(acc)
+        + i32x4_extract_lane::<2>(acc)
+        + i32x4_extract_lane::<3>(acc);
 
     // Scalar remainder for the last edge when n is odd (vertex n-1 → vertex 0)
     if n & 1 != 0 {
-        sum += pts[len - 2] as i64 * pts[1] as i64 - pts[len - 1] as i64 * pts[0] as i64;
+        sum += pts[len - 2] as i32 * pts[1] as i32 - pts[len - 1] as i32 * pts[0] as i32;
     }
 
-    sum as f64 * 0.5
+    sum
 }
 
-pub(crate) fn triangle_angle(v1x: f32, v1y: f32, v2x: f32, v2y: f32) -> f32 {
-    let l1 = (v1x * v1x + v1y * v1y).sqrt();
-    let l2 = (v2x * v2x + v2y * v2y).sqrt();
+pub(crate) fn triangle_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
+    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
+    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
+    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
+
+    let v1x = bx - ax;
+    let v1y = by - ay;
+    let v2x = cx - ax;
+    let v2y = cy - ay;
+    let l1 = (dist2i_poly(pts, a, b) as f32).sqrt();
+    let l2 = (dist2i_poly(pts, a, c) as f32).sqrt();
     if l1 == 0.0 || l2 == 0.0 {
         return 0.0;
     }
@@ -119,22 +138,16 @@ pub(crate) fn triangle_angle(v1x: f32, v1y: f32, v2x: f32, v2y: f32) -> f32 {
 }
 
 pub(crate) fn triangle_min_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
-    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
-    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
-    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
-    let aa = triangle_angle(bx - ax, by - ay, cx - ax, cy - ay);
-    let ab = triangle_angle(ax - bx, ay - by, cx - bx, cy - by);
-    let ac = triangle_angle(ax - cx, ay - cy, bx - cx, by - cy);
+    let aa = triangle_angle(pts, a, b, c);
+    let ab = triangle_angle(pts, b, a, c);
+    let ac = triangle_angle(pts, c, a, b);
     aa.min(ab).min(ac)
 }
 
 pub(crate) fn triangle_max_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
-    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
-    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
-    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
-    let aa = triangle_angle(bx - ax, by - ay, cx - ax, cy - ay);
-    let ab = triangle_angle(ax - bx, ay - by, cx - bx, cy - by);
-    let ac = triangle_angle(ax - cx, ay - cy, bx - cx, by - cy);
+    let aa = triangle_angle(pts, a, b, c);
+    let ab = triangle_angle(pts, b, a, c);
+    let ac = triangle_angle(pts, c, a, b);
     aa.max(ab).max(ac)
 }
 
