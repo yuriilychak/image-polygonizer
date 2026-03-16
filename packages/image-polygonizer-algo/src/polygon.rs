@@ -77,6 +77,37 @@ fn cross2(ax: u16, ay: u16, bx: u16, by: u16, cx: u16, cy: u16) -> i32 {
     bax as i32 * cby as i32 - bay as i32 * cbx as i32
 }
 
+#[inline]
+fn cross2_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
+    cross2(
+        gx(pts, a),
+        gy(pts, a),
+        gx(pts, b),
+        gy(pts, b),
+        gx(pts, c),
+        gy(pts, c),
+    )
+}
+
+#[inline]
+fn dist2i_poly(pts: &[u16], a: usize, b: usize) -> i32 {
+    dist2i(gx(pts, a), gy(pts, a), gx(pts, b), gy(pts, b))
+}
+
+#[inline]
+fn dist2(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    dx * dx + dy * dy
+}
+
+#[inline]
+fn dist2i(x1: u16, y1: u16, x2: u16, y2: u16) -> i32 {
+    let dx = x2 as i16 - x1 as i16;
+    let dy = y2 as i16 - y1 as i16;
+    dx as i32 * dx as i32 + dy as i32 * dy as i32
+}
+
 /// Segment intersection (proper + collinear endpoint cases).
 fn segments_intersect(
     a0x: u16,
@@ -273,16 +304,13 @@ fn rdp_find_anchor(pts: &[u16], n: usize) -> usize {
 }
 
 fn rdp_find_farthest(pts: &[u16], n: usize, anchor: usize) -> usize {
-    let (ax, ay) = (gx(pts, anchor) as i32, gy(pts, anchor) as i32);
     let mut best = anchor;
-    let mut best_d = -1i64;
+    let mut best_d = -1i32;
     for i in 0..n {
         if i == anchor {
             continue;
         }
-        let dx = gx(pts, i) as i32 - ax;
-        let dy = gy(pts, i) as i32 - ay;
-        let d = dx as i64 * dx as i64 + dy as i64 * dy as i64;
+        let d = dist2i_poly(pts, i, anchor);
         if d > best_d {
             best_d = d;
             best = i;
@@ -305,18 +333,11 @@ fn rdp_build_arc(n: usize, start: usize, end: usize) -> Vec<usize> {
 }
 
 fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f32 {
-    let (px, py) = (gx(pts, p) as i16, gy(pts, p) as i16);
-    let (ax, ay) = (gx(pts, a) as i16, gy(pts, a) as i16);
-    let (bx, by) = (gx(pts, b) as i16, gy(pts, b) as i16);
-    let abx = bx - ax;
-    let aby = by - ay;
-    let len_sq = abx as i32 * abx as i32 + aby as i32 * aby as i32;
+    let len_sq = dist2i_poly(pts, a, b);
     if len_sq == 0 {
-        let dx = px - ax;
-        let dy = py - ay;
-        return (dx as i32 * dx as i32 + dy as i32 * dy as i32) as f32;
+        return dist2i_poly(pts, a, p) as f32;
     }
-    let cross = abx as i32 * (py - ay) as i32 - aby as i32 * (px - ax) as i32;
+    let cross = cross2_poly(pts, a, b, p);
     cross as f32 * cross as f32 / len_sq as f32
 }
 
@@ -414,15 +435,15 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
     None
 }
 
-fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i64, f32) {
+fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i32, f32) {
     let mut cur = (start + 1) % n;
     let mut max_d = -1.0f32;
-    let mut max_p = -1i64;
+    let mut max_p = -1i32;
     while cur != end {
         let d = rdp_point_line_dist_sq(pts, cur, start, end);
         if d > max_d {
             max_d = d;
-            max_p = cur as i64;
+            max_p = cur as i32;
         }
         cur = (cur + 1) % n;
     }
@@ -510,18 +531,17 @@ fn interior_angle_rad(
     cy: u16,
     orientation_sign: i8,
 ) -> f32 {
-    let (ax, ay, bx, by, cx, cy) = (
-        ax as i32, ay as i32, bx as i32, by as i32, cx as i32, cy as i32,
-    );
-    let v1x = (ax - bx) as f32;
-    let v1y = (ay - by) as f32;
-    let v2x = (cx - bx) as f32;
-    let v2y = (cy - by) as f32;
-    let l1 = (v1x * v1x + v1y * v1y).sqrt();
-    let l2 = (v2x * v2x + v2y * v2y).sqrt();
-    if l1 == 0.0 || l2 == 0.0 {
+    let l1_sq = dist2i(bx, by, ax, ay);
+    let l2_sq = dist2i(bx, by, cx, cy);
+    if l1_sq == 0 || l2_sq == 0 {
         return 0.0;
     }
+    let v1x = (ax as i16 - bx as i16) as f32;
+    let v1y = (ay as i16 - by as i16) as f32;
+    let v2x = (cx as i16 - bx as i16) as f32;
+    let v2y = (cy as i16 - by as i16) as f32;
+    let l1 = (l1_sq as f32).sqrt();
+    let l2 = (l2_sq as f32).sqrt();
     let cos = ((v1x * v2x + v1y * v2y) / (l1 * l2)).clamp(-1.0, 1.0);
     let small_angle = cos.acos();
     // cross = v1 × v2 = -cross2(ax,ay,bx,by,cx,cy), so comparisons are flipped
@@ -840,7 +860,7 @@ fn snap_conservative(fx: f32, fy: f32, la: (f32, f32, f32), lb: (f32, f32, f32))
                 if la.0 * x as f32 + la.1 * y as f32 + la.2 <= 1e-4
                     && lb.0 * x as f32 + lb.1 * y as f32 + lb.2 <= 1e-4
                 {
-                    let d = (x as f32 - fx).powi(2) + (y as f32 - fy).powi(2);
+                    let d = dist2(fx, fy, x as f32, y as f32);
                     if d < best_d {
                         best_d = d;
                         best_x = x;
@@ -889,14 +909,15 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
     let mut lines: Vec<(f32, f32, f32)> = Vec::with_capacity(ns);
     for i in 0..ns {
         let j = (i + 1) % ns;
+        let len_sq = dist2i_poly(&simp, i, j);
+        if len_sq == 0 {
+            return simp;
+        }
         let (ax, ay) = (gx(&simp, i) as f32, gy(&simp, i) as f32);
         let (bx, by) = (gx(&simp, j) as f32, gy(&simp, j) as f32);
         let dx = bx - ax;
         let dy = by - ay;
-        let len = (dx * dx + dy * dy).sqrt();
-        if len == 0.0 {
-            return simp;
-        }
+        let len = (len_sq as f32).sqrt();
         let (nx, ny) = if orientation >= 0.0 {
             (dy / len, -dx / len)
         } else {
@@ -1022,12 +1043,12 @@ fn primitive_dir(dx: i32, dy: i32) -> (i32, i32) {
     (dx / g, dy / g)
 }
 
-fn point_on_seg_i32(ax: i32, ay: i32, bx: i32, by: i32, px: i32, py: i32) -> bool {
-    let cross = (bx - ax) as i64 * (py - ay) as i64 - (by - ay) as i64 * (px - ax) as i64;
-    if cross != 0 {
-        return false;
-    }
-    px >= ax.min(bx) && px <= ax.max(bx) && py >= ay.min(by) && py <= ay.max(by)
+fn point_on_seg_i32(ax: u16, ay: u16, bx: u16, by: u16, px: u16, py: u16) -> bool {
+    cross2(ax, ay, bx, by, px, py) == 0
+        && px >= ax.min(bx)
+        && px <= ax.max(bx)
+        && py >= ay.min(by)
+        && py <= ay.max(by)
 }
 
 fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
@@ -1035,13 +1056,15 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (poly.px(i) as i32, poly.py(i) as i32);
-        let (xj, yj) = (poly.px(j) as i32, poly.py(j) as i32);
-        if point_on_seg_i32(xj, yj, xi, yi, px, py) {
+        let (xi, yi) = (poly.px(i), poly.py(i));
+        let (xj, yj) = (poly.px(j), poly.py(j));
+        if point_on_seg_i32(xj, yj, xi, yi, px as u16, py as u16) {
             return true;
         }
-        if (yi > py) != (yj > py) {
-            let t = (xj - xi) as f32 * (py - yi) as f32 / (yj - yi) as f32 + xi as f32;
+        if (yi as i32 > py) != (yj as i32 > py) {
+            let t = (xj as i32 - xi as i32) as f32 * (py - yi as i32) as f32
+                / (yj as i32 - yi as i32) as f32
+                + xi as f32;
             if (px as f32) <= t {
                 inside = !inside;
             }
@@ -1350,10 +1373,10 @@ fn pg_point_in_poly_or_edge(poly: &[u16], px: u16, py: u16) -> bool {
         if (yi > py) != (yj > py) {
             // Integer winding test: px <= (xj - xi) * (py - yi) / (yj - yi) + xi
             // Multiply through by dy = (yj - yi), flip <= when dy < 0.
-            let dy = (yj as i32 - yi as i32) as i64;
-            let lhs = px as i64 * dy;
+            let dy = (yj as i16 - yi as i16) as i32;
+            let lhs = px as i32 * dy;
             let rhs =
-                (xj as i32 - xi as i32) as i64 * (py as i32 - yi as i32) as i64 + xi as i64 * dy;
+                (xj as i16 - xi as i16) as i32 * (py as i16 - yi as i16) as i32 + xi as i32 * dy;
             if (dy > 0 && lhs <= rhs) || (dy < 0 && lhs >= rhs) {
                 inside = !inside;
             }
