@@ -106,7 +106,7 @@ unsafe fn polygon_signed_area_simd(pts: &[u16]) -> f64 {
     sum as f64 * 0.5
 }
 
-pub(crate) fn triangle_angle(v1x: f64, v1y: f64, v2x: f64, v2y: f64) -> f64 {
+pub(crate) fn triangle_angle(v1x: f32, v1y: f32, v2x: f32, v2y: f32) -> f32 {
     let l1 = (v1x * v1x + v1y * v1y).sqrt();
     let l2 = (v2x * v2x + v2y * v2y).sqrt();
     if l1 == 0.0 || l2 == 0.0 {
@@ -116,20 +116,20 @@ pub(crate) fn triangle_angle(v1x: f64, v1y: f64, v2x: f64, v2y: f64) -> f64 {
     cos.acos()
 }
 
-pub(crate) fn triangle_min_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f64 {
-    let (ax, ay) = (gx(pts, a) as f64, gy(pts, a) as f64);
-    let (bx, by) = (gx(pts, b) as f64, gy(pts, b) as f64);
-    let (cx, cy) = (gx(pts, c) as f64, gy(pts, c) as f64);
+pub(crate) fn triangle_min_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
+    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
+    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
+    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
     let aa = triangle_angle(bx - ax, by - ay, cx - ax, cy - ay);
     let ab = triangle_angle(ax - bx, ay - by, cx - bx, cy - by);
     let ac = triangle_angle(ax - cx, ay - cy, bx - cx, by - cy);
     aa.min(ab).min(ac)
 }
 
-pub(crate) fn triangle_max_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f64 {
-    let (ax, ay) = (gx(pts, a) as f64, gy(pts, a) as f64);
-    let (bx, by) = (gx(pts, b) as f64, gy(pts, b) as f64);
-    let (cx, cy) = (gx(pts, c) as f64, gy(pts, c) as f64);
+pub(crate) fn triangle_max_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
+    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
+    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
+    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
     let aa = triangle_angle(bx - ax, by - ay, cx - ax, cy - ay);
     let ab = triangle_angle(ax - bx, ay - by, cx - bx, cy - by);
     let ac = triangle_angle(ax - cx, ay - cy, bx - cx, by - cy);
@@ -156,13 +156,13 @@ pub(crate) fn point_in_triangle_or_on_edge(
 
 pub(crate) fn orient_triangle_like_polygon(
     pts: &[u16],
-    poly_sign: f64,
+    poly_sign: i8,
     a: usize,
     b: usize,
     c: usize,
 ) -> (usize, usize, usize) {
     let tri_sign = orient_poly(pts, a, b, c);
-    if (poly_sign > 0.0 && tri_sign > 0) || (poly_sign < 0.0 && tri_sign < 0) {
+    if (poly_sign > 0 && tri_sign > 0) || (poly_sign < 0 && tri_sign < 0) {
         (a, b, c)
     } else {
         (a, c, b)

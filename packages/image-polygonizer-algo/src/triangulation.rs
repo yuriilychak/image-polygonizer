@@ -31,7 +31,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
         return vec![0, 1, 2];
     }
 
-    let poly_sign = polygon_signed_area(pts).signum();
+    let poly_sign = polygon_signed_area(pts).signum() as i8;
 
     // ── linked list ───────────────────────────────────────────────────────────
     let mut prev = (0..n)
@@ -50,7 +50,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
         let start = alive.iter().position(|&a| a).unwrap_or(0);
 
         let mut best_ear: Option<usize> = None;
-        let mut best_score = f64::NEG_INFINITY;
+        let mut best_score = f32::NEG_INFINITY;
 
         let mut i = start;
         loop {
@@ -125,9 +125,9 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
 
 // ── ear clipping helpers ──────────────────────────────────────────────────────
 
-fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: f64) -> bool {
+fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: i8) -> bool {
     let cross = orient_poly(pts, a, b, c);
-    poly_sign >= 0.0 && cross > 0 || cross < 0
+    poly_sign >= 0 && cross > 0 || cross < 0
 }
 
 fn is_ear(
@@ -136,7 +136,7 @@ fn is_ear(
     prev: &[usize],
     next: &[usize],
     alive: &[bool],
-    poly_sign: f64,
+    poly_sign: i8,
 ) -> bool {
     let a = prev[i];
     let b = i;
@@ -166,10 +166,10 @@ fn is_ear(
     true
 }
 
-fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f64 {
+fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
     let min_a = triangle_min_angle(pts, a, b, c);
     let max_a = triangle_max_angle(pts, a, b, c);
-    let area2 = orient_poly(pts, a, b, c).abs() as f64;
+    let area2 = orient_poly(pts, a, b, c).abs() as f32;
     min_a * 100000.0 - max_a * 10.0 + area2
 }
 
@@ -218,16 +218,16 @@ fn third_vertex(tris: &[usize], ia: usize, u: usize, v: usize) -> usize {
 }
 
 /// Quad with all 4 consecutive turns matching `poly_sign` (strictly convex).
-fn is_convex_quad(pts: &[u16], poly_sign: f64, a: usize, b: usize, c: usize, d: usize) -> bool {
+fn is_convex_quad(pts: &[u16], poly_sign: i8, a: usize, b: usize, c: usize, d: usize) -> bool {
     let o1 = orient_poly(pts, a, b, c);
     let o2 = orient_poly(pts, b, c, d);
     let o3 = orient_poly(pts, c, d, a);
     let o4 = orient_poly(pts, d, a, b);
-    poly_sign > 0.0 && o1 > 0 && o2 > 0 && o3 > 0 && o4 > 0 || o1 < 0 && o2 < 0 && o3 < 0 && o4 < 0
+    poly_sign > 0 && o1 > 0 && o2 > 0 && o3 > 0 && o4 > 0 || o1 < 0 && o2 < 0 && o3 < 0 && o4 < 0
 }
 
 /// min and max angles across both triangles of a quad diagonal (u,v | w1,w2).
-fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f64, f64) {
+fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f32, f32) {
     let min1 = triangle_min_angle(pts, u, v, w1);
     let max1 = triangle_max_angle(pts, u, v, w1);
     let min2 = triangle_min_angle(pts, v, u, w2);
@@ -235,15 +235,15 @@ fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f64, f
     (min1.min(min2), max1.max(max2))
 }
 
-fn diag_len_sq(pts: &[u16], a: usize, b: usize) -> f64 {
+fn diag_len_sq(pts: &[u16], a: usize, b: usize) -> i32 {
     let dx = gx(pts, a) as i32 - gx(pts, b) as i32;
     let dy = gy(pts, a) as i32 - gy(pts, b) as i32;
-    (dx * dx + dy * dy) as f64
+    dx * dx + dy * dy
 }
 
 // ── Phase 1: basic Lawson flip ────────────────────────────────────────────────
 // Port of `optimizeTrianglesByEdgeFlip` in triangulate.ts.
-fn flip_edges_basic(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>) {
+fn flip_edges_basic(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>) {
     if tris.len() < 6 {
         return;
     }
@@ -288,7 +288,7 @@ fn flip_edges_basic(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>) {
 
 // ── Phase 2: advanced 3-criterion flip ───────────────────────────────────────
 // Port of `optimizeTrianglesByEdgeFlipRepeated` in triangle-retopology.ts.
-fn flip_edges_advanced(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>, max_passes: u32) {
+fn flip_edges_advanced(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>, max_passes: u32) {
     if tris.len() < 6 {
         return;
     }
@@ -322,7 +322,7 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>, max_p
             let (min_a, max_a) = pair_angles(pts, w1, w2, eu, ev);
             let diag_b = diag_len_sq(pts, eu, ev);
             let diag_a = diag_len_sq(pts, w1, w2);
-            const EPS: f64 = 1e-9;
+            const EPS: f32 = 1e-6;
             let min_dif = min_a - min_b;
             let max_dif = max_a - max_b;
             let better = if min_dif.abs() > EPS {

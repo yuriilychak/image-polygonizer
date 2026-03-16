@@ -231,22 +231,23 @@ fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: u8) -> Vec<u16> 
         return normalized;
     }
 
+    let eps_sq = (epsilon as u16) * (epsilon as u16);
     let arc1 = rdp_build_arc(n, anchor, split);
     let arc2 = rdp_build_arc(n, split, anchor);
-    let keep1 = rdp_simplify_open(&normalized, &arc1, epsilon as f64);
-    let keep2 = rdp_simplify_open(&normalized, &arc2, epsilon as f64);
+    let keep1 = rdp_simplify_open(&normalized, &arc1, eps_sq);
+    let keep2 = rdp_simplify_open(&normalized, &arc2, eps_sq);
     let mut kept = rdp_merge_arcs(&arc1, &keep1, &arc2, &keep2);
 
     if kept.len() < 3 {
         return normalized;
     }
 
-    rdp_resolve_self_intersections(&normalized, &mut kept, epsilon as f64);
+    rdp_resolve_self_intersections(&normalized, &mut kept, eps_sq);
     if kept.len() < 3 {
         return normalized;
     }
 
-    rdp_cleanup_redundant(&normalized, &mut kept, epsilon as f64 * epsilon as f64);
+    rdp_cleanup_redundant(&normalized, &mut kept, eps_sq);
     if kept.len() < 3 {
         return normalized;
     }
@@ -256,10 +257,10 @@ fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: u8) -> Vec<u16> 
 
 fn rdp_find_anchor(pts: &[u16], n: usize) -> usize {
     let mut anchor = 0;
-    let (mut mx, mut my) = (gx(pts, 0) as i32, gy(pts, 0) as i32);
+    let (mut mx, mut my) = (gx(pts, 0), gy(pts, 0));
     for i in 1..n {
-        let x = gx(pts, i) as i32;
-        let y = gy(pts, i) as i32;
+        let x = gx(pts, i);
+        let y = gy(pts, i);
         if x < mx || (x == mx && y < my) {
             anchor = i;
             mx = x;
@@ -317,7 +318,7 @@ fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f64 {
     cross * cross / len_sq
 }
 
-fn rdp_simplify_open(pts: &[u16], indices: &[usize], epsilon: f64) -> Vec<bool> {
+fn rdp_simplify_open(pts: &[u16], indices: &[usize], eps_sq: u16) -> Vec<bool> {
     let n = indices.len();
     let mut keep = vec![false; n];
     if n <= 2 {
@@ -328,7 +329,7 @@ fn rdp_simplify_open(pts: &[u16], indices: &[usize], epsilon: f64) -> Vec<bool> 
     }
     keep[0] = true;
     keep[n - 1] = true;
-    let eps_sq = epsilon * epsilon;
+    let eps_sq = eps_sq as f64;
     let mut stack: Vec<(usize, usize)> = vec![(0, n - 1)];
     while let Some((start, end)) = stack.pop() {
         if end - start <= 1 {
@@ -426,9 +427,8 @@ fn rdp_find_worst_on_arc(pts: &[u16], n: usize, start: usize, end: usize) -> (i6
     (max_p, max_d)
 }
 
-fn rdp_resolve_self_intersections(pts: &[u16], kept: &mut Vec<usize>, epsilon: f64) {
+fn rdp_resolve_self_intersections(pts: &[u16], kept: &mut Vec<usize>, eps_sq: u16) {
     let n = pts.len() / 2;
-    let eps_sq = epsilon * epsilon;
     for _ in 0..(n * 2) {
         let Some((ea, eb)) = rdp_find_self_intersection(pts, kept) else {
             return;
@@ -453,10 +453,10 @@ fn rdp_resolve_self_intersections(pts: &[u16], kept: &mut Vec<usize>, epsilon: f
     }
 }
 
-fn rdp_arc_fits_eps(pts: &[u16], n: usize, start: usize, end: usize, eps_sq: f64) -> bool {
+fn rdp_arc_fits_eps(pts: &[u16], n: usize, start: usize, end: usize, eps_sq: u16) -> bool {
     let mut cur = (start + 1) % n;
     while cur != end {
-        if rdp_point_line_dist_sq(pts, cur, start, end) > eps_sq {
+        if rdp_point_line_dist_sq(pts, cur, start, end) > eps_sq as f64 {
             return false;
         }
         cur = (cur + 1) % n;
@@ -464,7 +464,7 @@ fn rdp_arc_fits_eps(pts: &[u16], n: usize, start: usize, end: usize, eps_sq: f64
     true
 }
 
-fn rdp_cleanup_redundant(pts: &[u16], kept: &mut Vec<usize>, eps_sq: f64) {
+fn rdp_cleanup_redundant(pts: &[u16], kept: &mut Vec<usize>, eps_sq: u16) {
     if kept.len() <= 3 {
         return;
     }
@@ -506,16 +506,12 @@ fn interior_angle_rad(
     by: i32,
     cx: i32,
     cy: i32,
-    orientation_sign: f64,
+    orientation_sign: i8,
 ) -> f64 {
-    let cross = cross2(ax, ay, bx, by, cx, cy);
-    let (ax, ay, bx, by, cx, cy) = (
-        ax as f64, ay as f64, bx as f64, by as f64, cx as f64, cy as f64,
-    );
-    let v1x = ax - bx;
-    let v1y = ay - by;
-    let v2x = cx - bx;
-    let v2y = cy - by;
+    let v1x = (ax - bx) as f64;
+    let v1y = (ay - by) as f64;
+    let v2x = (cx - bx) as f64;
+    let v2y = (cy - by) as f64;
     let l1 = (v1x * v1x + v1y * v1y).sqrt();
     let l2 = (v2x * v2x + v2y * v2y).sqrt();
     if l1 == 0.0 || l2 == 0.0 {
@@ -523,7 +519,9 @@ fn interior_angle_rad(
     }
     let cos = ((v1x * v2x + v1y * v2y) / (l1 * l2)).clamp(-1.0, 1.0);
     let small_angle = cos.acos();
-    let is_convex = orientation_sign > 0.0 && cross > 0 || cross < 0;
+    // cross = v1 × v2 = -cross2(ax,ay,bx,by,cx,cy), so comparisons are flipped
+    let cross = v1x * v2y - v1y * v2x;
+    let is_convex = orientation_sign > 0 && cross < 0.0 || cross > 0.0;
 
     if is_convex {
         small_angle
@@ -545,7 +543,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec
         return state.materialize();
     }
     let threshold = total_area * percentage;
-    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
     let mut changed = true;
     while changed && state.active > 3 {
         changed = false;
@@ -569,7 +567,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec
             let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
             let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
             let cross = cross2(ax, ay, bx, by, cx, cy);
-            let is_concave = orient_sign > 0.0 && cross < 0 || cross > 0;
+            let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
             if !is_concave {
                 continue;
             }
@@ -606,7 +604,7 @@ fn remove_obtuse_humps(
         return state.materialize();
     }
     let threshold = total_area * percentage;
-    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
     let mut changed = true;
     while changed && state.active > 3 {
         changed = false;
@@ -630,7 +628,7 @@ fn remove_obtuse_humps(
             let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
             let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
             let cross = cross2(ax, ay, bx, by, cx, cy);
-            let is_convex = orient_sign > 0.0 && cross > 0 || cross < 0;
+            let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
                 continue;
             }
@@ -689,7 +687,7 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
     }
     let mut state = LinkedState::new(normalized);
     let signed = state.signed_area();
-    let orient_sign = if signed >= 0.0 { 1.0f64 } else { -1.0 };
+    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
     while state.active > 3 && state.active > max_count {
         let start = match state.alive.iter().position(|&a| a) {
             Some(s) => s,
@@ -706,7 +704,7 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
                 let (bx, by) = (state.px(cur) as i32, state.py(cur) as i32);
                 let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
                 let cross = cross2(ax, ay, bx, by, cx, cy);
-                let is_concave = orient_sign > 0.0 && cross < 0 || cross > 0;
+                let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave {
                     let area = cross.abs() as f64 * 0.5;
                     if area < best_area && !state.would_create_self_intersection_after_removal(cur)
