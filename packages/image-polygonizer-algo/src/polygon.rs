@@ -15,8 +15,8 @@ use crate::utils::{gx, gy, orient_raw, polygon_signed_area};
 /// `max_point_count` is the max vertex count for the output polygon.
 pub(crate) fn contour_to_polygon(
     contour: &[u16],
-    min_distance: f64,
-    max_point_count: u16,
+    min_distance: u8,
+    max_point_count: u8,
 ) -> Vec<u16> {
     // ── step 1: RDP simplification ────────────────────────────────────────────
     let step1 = rdp_simplify_no_self_intersections(contour, min_distance);
@@ -71,8 +71,8 @@ fn normalize_contour(pts: &[u16]) -> Vec<u16> {
 
 /// cross2: (B-A) × (C-B)
 #[inline]
-fn cross2_f(ax: f64, ay: f64, bx: f64, by: f64, cx: f64, cy: f64) -> f64 {
-    (bx - ax) * (cy - by) - (by - ay) * (cx - bx)
+fn cross2(ax: i32, ay: i32, bx: i32, by: i32, cx: i32, cy: i32) -> i64 {
+    (bx - ax) as i64 * (cy - by) as i64 - (by - ay) as i64 * (cx - bx) as i64
 }
 
 /// Segment intersection (proper + collinear endpoint cases).
@@ -149,21 +149,7 @@ impl LinkedState {
     }
 
     fn signed_area(&self) -> f64 {
-        let start = match self.alive.iter().position(|&a| a) {
-            Some(s) => s,
-            None => return 0.0,
-        };
-        let mut sum = 0.0f64;
-        let mut i = start;
-        loop {
-            let j = self.next[i];
-            sum += self.px(i) as f64 * self.py(j) as f64 - self.px(j) as f64 * self.py(i) as f64;
-            i = j;
-            if i == start {
-                break;
-            }
-        }
-        sum * 0.5
+        polygon_signed_area(&self.materialize())
     }
 
     fn remove(&mut self, idx: usize) {
@@ -232,7 +218,7 @@ impl LinkedState {
 
 // ── Step 1: RDP simplification ────────────────────────────────────────────────
 
-fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: f64) -> Vec<u16> {
+fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: u8) -> Vec<u16> {
     let normalized = normalize_contour(contour);
     let n = normalized.len() / 2;
     if n < 3 {
@@ -247,20 +233,20 @@ fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: f64) -> Vec<u16>
 
     let arc1 = rdp_build_arc(n, anchor, split);
     let arc2 = rdp_build_arc(n, split, anchor);
-    let keep1 = rdp_simplify_open(&normalized, &arc1, epsilon);
-    let keep2 = rdp_simplify_open(&normalized, &arc2, epsilon);
+    let keep1 = rdp_simplify_open(&normalized, &arc1, epsilon as f64);
+    let keep2 = rdp_simplify_open(&normalized, &arc2, epsilon as f64);
     let mut kept = rdp_merge_arcs(&arc1, &keep1, &arc2, &keep2);
 
     if kept.len() < 3 {
         return normalized;
     }
 
-    rdp_resolve_self_intersections(&normalized, &mut kept, epsilon);
+    rdp_resolve_self_intersections(&normalized, &mut kept, epsilon as f64);
     if kept.len() < 3 {
         return normalized;
     }
 
-    rdp_cleanup_redundant(&normalized, &mut kept, epsilon * epsilon);
+    rdp_cleanup_redundant(&normalized, &mut kept, epsilon as f64 * epsilon as f64);
     if kept.len() < 3 {
         return normalized;
     }
@@ -284,16 +270,16 @@ fn rdp_find_anchor(pts: &[u16], n: usize) -> usize {
 }
 
 fn rdp_find_farthest(pts: &[u16], n: usize, anchor: usize) -> usize {
-    let (ax, ay) = (gx(pts, anchor) as f64, gy(pts, anchor) as f64);
+    let (ax, ay) = (gx(pts, anchor) as i32, gy(pts, anchor) as i32);
     let mut best = anchor;
-    let mut best_d = -1.0f64;
+    let mut best_d = -1i64;
     for i in 0..n {
         if i == anchor {
             continue;
         }
-        let dx = gx(pts, i) as f64 - ax;
-        let dy = gy(pts, i) as f64 - ay;
-        let d = dx * dx + dy * dy;
+        let dx = gx(pts, i) as i32 - ax;
+        let dy = gy(pts, i) as i32 - ay;
+        let d = dx as i64 * dx as i64 + dy as i64 * dy as i64;
         if d > best_d {
             best_d = d;
             best = i;
@@ -316,18 +302,18 @@ fn rdp_build_arc(n: usize, start: usize, end: usize) -> Vec<usize> {
 }
 
 fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f64 {
-    let (px, py) = (gx(pts, p) as f64, gy(pts, p) as f64);
-    let (ax, ay) = (gx(pts, a) as f64, gy(pts, a) as f64);
-    let (bx, by) = (gx(pts, b) as f64, gy(pts, b) as f64);
+    let (px, py) = (gx(pts, p) as i32, gy(pts, p) as i32);
+    let (ax, ay) = (gx(pts, a) as i32, gy(pts, a) as i32);
+    let (bx, by) = (gx(pts, b) as i32, gy(pts, b) as i32);
     let abx = bx - ax;
     let aby = by - ay;
-    let len_sq = abx * abx + aby * aby;
+    let len_sq = (abx * abx + aby * aby) as f64;
     if len_sq == 0.0 {
         let dx = px - ax;
         let dy = py - ay;
-        return dx * dx + dy * dy;
+        return (dx * dx + dy * dy) as f64;
     }
-    let cross = abx * (py - ay) - aby * (px - ax);
+    let cross = (abx * (py - ay) - aby * (px - ax)) as f64;
     cross * cross / len_sq
 }
 
@@ -514,14 +500,18 @@ fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
 // ── Step 2: iterative relax+simplify ─────────────────────────────────────────
 
 fn interior_angle_rad(
-    ax: f64,
-    ay: f64,
-    bx: f64,
-    by: f64,
-    cx: f64,
-    cy: f64,
+    ax: i32,
+    ay: i32,
+    bx: i32,
+    by: i32,
+    cx: i32,
+    cy: i32,
     orientation_sign: f64,
 ) -> f64 {
+    let cross = cross2(ax, ay, bx, by, cx, cy);
+    let (ax, ay, bx, by, cx, cy) = (
+        ax as f64, ay as f64, bx as f64, by as f64, cx as f64, cy as f64,
+    );
     let v1x = ax - bx;
     let v1y = ay - by;
     let v2x = cx - bx;
@@ -533,8 +523,7 @@ fn interior_angle_rad(
     }
     let cos = ((v1x * v2x + v1y * v2y) / (l1 * l2)).clamp(-1.0, 1.0);
     let small_angle = cos.acos();
-    let cross = cross2_f(ax, ay, bx, by, cx, cy);
-    let is_convex = orientation_sign > 0.0 && cross > 0.0 || cross < 0.0;
+    let is_convex = orientation_sign > 0.0 && cross > 0 || cross < 0;
 
     if is_convex {
         small_angle
@@ -576,15 +565,15 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f64, hole_angle_rad: f64) -> Vec
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev) as f64, state.py(prev) as f64);
-            let (bx, by) = (state.px(curr) as f64, state.py(curr) as f64);
-            let (cx, cy) = (state.px(next) as f64, state.py(next) as f64);
-            let cross = cross2_f(ax, ay, bx, by, cx, cy);
-            let is_concave = orient_sign > 0.0 && cross < 0.0 || cross > 0.0;
+            let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
+            let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
+            let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+            let cross = cross2(ax, ay, bx, by, cx, cy);
+            let is_concave = orient_sign > 0.0 && cross < 0 || cross > 0;
             if !is_concave {
                 continue;
             }
-            let pit_area = cross.abs() * 0.5;
+            let pit_area = cross.abs() as f64 * 0.5;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             if pit_area > threshold && angle <= hole_angle_rad {
                 continue;
@@ -637,15 +626,15 @@ fn remove_obtuse_humps(
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev) as f64, state.py(prev) as f64);
-            let (bx, by) = (state.px(curr) as f64, state.py(curr) as f64);
-            let (cx, cy) = (state.px(next) as f64, state.py(next) as f64);
-            let cross = cross2_f(ax, ay, bx, by, cx, cy);
-            let is_convex = orient_sign > 0.0 && cross > 0.0 || cross < 0.0;
+            let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
+            let (bx, by) = (state.px(curr) as i32, state.py(curr) as i32);
+            let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+            let cross = cross2(ax, ay, bx, by, cx, cy);
+            let is_convex = orient_sign > 0.0 && cross > 0 || cross < 0;
             if !is_convex {
                 continue;
             }
-            let hump_area = cross.abs() * 0.5;
+            let hump_area = cross.abs() as f64 * 0.5;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             let remove_by_angle = angle > angle_threshold_rad;
             let remove_by_area = angle > pick_angle_rad && hump_area <= threshold;
@@ -668,7 +657,7 @@ fn iterative_relax_and_simplify(
     angle_rad: f64,
     hole_angle_rad: f64,
     pick_angle_rad: f64,
-    epsilon: f64,
+    epsilon: u8,
 ) -> Vec<u16> {
     let mut current = normalize_contour(contour);
     if current.len() / 2 <= 3 {
@@ -713,13 +702,13 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let (ax, ay) = (state.px(prev) as f64, state.py(prev) as f64);
-                let (bx, by) = (state.px(cur) as f64, state.py(cur) as f64);
-                let (cx, cy) = (state.px(next) as f64, state.py(next) as f64);
-                let cross = cross2_f(ax, ay, bx, by, cx, cy);
-                let is_concave = orient_sign > 0.0 && cross < 0.0 || cross > 0.0;
+                let (ax, ay) = (state.px(prev) as i32, state.py(prev) as i32);
+                let (bx, by) = (state.px(cur) as i32, state.py(cur) as i32);
+                let (cx, cy) = (state.px(next) as i32, state.py(next) as i32);
+                let cross = cross2(ax, ay, bx, by, cx, cy);
+                let is_concave = orient_sign > 0.0 && cross < 0 || cross > 0;
                 if is_concave {
-                    let area = cross.abs() * 0.5;
+                    let area = cross.abs() as f64 * 0.5;
                     if area < best_area && !state.would_create_self_intersection_after_removal(cur)
                     {
                         best_area = area;
@@ -1285,16 +1274,16 @@ fn refine_by_sliding_edges(original: &[u16], cover: &[u16]) -> Vec<u16> {
 
 // ── polygon filtering (pg_filter_contained) ───────────────────────────────────
 
-fn pg_contour_bbox(pts: &[u16]) -> (f64, f64, f64, f64) {
+fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
     let n = pts.len() / 2;
     if n == 0 {
-        return (0.0, 0.0, 0.0, 0.0);
+        return (0, 0, 0, 0);
     }
-    let (mut min_x, mut max_x) = (gx(pts, 0) as f64, gx(pts, 0) as f64);
-    let (mut min_y, mut max_y) = (gy(pts, 0) as f64, gy(pts, 0) as f64);
+    let (mut min_x, mut max_x) = (gx(pts, 0), gx(pts, 0));
+    let (mut min_y, mut max_y) = (gy(pts, 0), gy(pts, 0));
     for i in 1..n {
-        let x = gx(pts, i) as f64;
-        let y = gy(pts, i) as f64;
+        let x = gx(pts, i);
+        let y = gy(pts, i);
         if x < min_x {
             min_x = x;
         }
@@ -1386,7 +1375,7 @@ pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
         .into_iter()
         .map(|c| normalize_contour(&c))
         .collect();
-    let bboxes: Vec<(f64, f64, f64, f64)> = normalized.iter().map(|c| pg_contour_bbox(c)).collect();
+    let bboxes: Vec<(u16, u16, u16, u16)> = normalized.iter().map(|c| pg_contour_bbox(c)).collect();
     let areas: Vec<f64> = normalized
         .iter()
         .map(|c| polygon_signed_area(c).abs())

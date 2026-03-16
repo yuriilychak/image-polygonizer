@@ -44,7 +44,7 @@ pub fn polygonize(
 
     let all_polygons: Vec<Vec<u16>> = raw_contours
         .iter()
-        .map(|c| contour_to_polygon(c, minimal_distance as f64, max_point_count as u16))
+        .map(|c| contour_to_polygon(c, minimal_distance, max_point_count))
         .collect();
 
     let filtered = pg_filter_contained(all_polygons);
