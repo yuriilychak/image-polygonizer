@@ -1,7 +1,7 @@
 // ── triangulation ─────────────────────────────────────────────────────────────
 
 use crate::utils::{
-    gx, gy, orient_raw, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
+    gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
     polygon_signed_area, triangle_max_angle, triangle_min_angle,
 };
 
@@ -126,19 +126,8 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
 // ── ear clipping helpers ──────────────────────────────────────────────────────
 
 fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: f64) -> bool {
-    let cross = orient_raw(
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
-    );
-    if poly_sign >= 0.0 {
-        cross > 0.0
-    } else {
-        cross < 0.0
-    }
+    let cross = orient_poly(pts, a, b, c);
+    poly_sign >= 0.0 && cross > 0 || cross < 0
 }
 
 fn is_ear(
@@ -168,7 +157,9 @@ fn is_ear(
         if px < min_x || px > max_x || py < min_y || py > max_y {
             continue;
         }
-        if point_in_triangle_or_on_edge(px, py, ax, ay, bx, by, cx, cy) {
+        if point_in_triangle_or_on_edge(
+            px as i32, py as i32, ax as i32, ay as i32, bx as i32, by as i32, cx as i32, cy as i32,
+        ) {
             return false;
         }
     }
@@ -178,15 +169,7 @@ fn is_ear(
 fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f64 {
     let min_a = triangle_min_angle(pts, a, b, c);
     let max_a = triangle_max_angle(pts, a, b, c);
-    let area2 = orient_raw(
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
-    )
-    .abs();
+    let area2 = orient_poly(pts, a, b, c).abs() as f64;
     min_a * 100000.0 - max_a * 10.0 + area2
 }
 
@@ -236,43 +219,11 @@ fn third_vertex(tris: &[usize], ia: usize, u: usize, v: usize) -> usize {
 
 /// Quad with all 4 consecutive turns matching `poly_sign` (strictly convex).
 fn is_convex_quad(pts: &[u16], poly_sign: f64, a: usize, b: usize, c: usize, d: usize) -> bool {
-    let o1 = orient_raw(
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
-    );
-    let o2 = orient_raw(
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
-        gx(pts, d),
-        gy(pts, d),
-    );
-    let o3 = orient_raw(
-        gx(pts, c),
-        gy(pts, c),
-        gx(pts, d),
-        gy(pts, d),
-        gx(pts, a),
-        gy(pts, a),
-    );
-    let o4 = orient_raw(
-        gx(pts, d),
-        gy(pts, d),
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-    );
-    if poly_sign > 0.0 {
-        o1 > 0.0 && o2 > 0.0 && o3 > 0.0 && o4 > 0.0
-    } else {
-        o1 < 0.0 && o2 < 0.0 && o3 < 0.0 && o4 < 0.0
-    }
+    let o1 = orient_poly(pts, a, b, c);
+    let o2 = orient_poly(pts, b, c, d);
+    let o3 = orient_poly(pts, c, d, a);
+    let o4 = orient_poly(pts, d, a, b);
+    poly_sign > 0.0 && o1 > 0 && o2 > 0 && o3 > 0 && o4 > 0 || o1 < 0 && o2 < 0 && o3 < 0 && o4 < 0
 }
 
 /// min and max angles across both triangles of a quad diagonal (u,v | w1,w2).
@@ -285,9 +236,9 @@ fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f64, f
 }
 
 fn diag_len_sq(pts: &[u16], a: usize, b: usize) -> f64 {
-    let dx = gx(pts, a) - gx(pts, b);
-    let dy = gy(pts, a) - gy(pts, b);
-    dx * dx + dy * dy
+    let dx = gx(pts, a) as i32 - gx(pts, b) as i32;
+    let dy = gy(pts, a) as i32 - gy(pts, b) as i32;
+    (dx * dx + dy * dy) as f64
 }
 
 // ── Phase 1: basic Lawson flip ────────────────────────────────────────────────
@@ -372,14 +323,12 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: f64, tris: &mut Vec<usize>, max_p
             let diag_b = diag_len_sq(pts, eu, ev);
             let diag_a = diag_len_sq(pts, w1, w2);
             const EPS: f64 = 1e-9;
-            let better = if min_a > min_b + EPS {
-                true
-            } else if min_a < min_b - EPS {
-                false
-            } else if max_a < max_b - EPS {
-                true
-            } else if max_a > max_b + EPS {
-                false
+            let min_dif = min_a - min_b;
+            let max_dif = max_a - max_b;
+            let better = if min_dif.abs() > EPS {
+                min_dif > 0.0
+            } else if max_dif.abs() > EPS {
+                max_dif < 0.0
             } else {
                 diag_a < diag_b
             };
