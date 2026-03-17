@@ -97,64 +97,41 @@ fn dist2(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
 }
 
 /// Segment intersection (proper + collinear endpoint cases).
-fn segments_intersect(
-    a0x: u16,
-    a0y: u16,
-    a1x: u16,
-    a1y: u16,
-    b0x: u16,
-    b0y: u16,
-    b1x: u16,
-    b1y: u16,
-) -> bool {
+fn segments_intersect(a: &[u16], a0: usize, a1: usize, b: &[u16], b0: usize, b1: usize) -> bool {
     #[inline]
-    fn sign(v: i32) -> i8 {
-        if v > 0 {
-            1
-        } else if v < 0 {
-            -1
-        } else {
-            0
-        }
-    }
-    #[inline]
-    fn on_seg(ax: u16, ay: u16, bx: u16, by: u16, px: u16, py: u16) -> bool {
+    fn on_seg(a: &[u16], a0: usize, a1: usize, b: &[u16], p: usize) -> bool {
+        let ax = gx(a, a0);
+        let ay = gy(a, a0);
+        let bx = gx(a, a1);
+        let by = gy(a, a1);
+        let px = gx(b, p);
+        let py = gy(b, p);
         px >= ax.min(bx)
             && px <= ax.max(bx)
             && py >= ay.min(by)
             && py <= ay.max(by)
             && orient_raw(ax, ay, bx, by, px, py) == 0
     }
-    let o1 = sign(orient_raw(a0x, a0y, a1x, a1y, b0x, b0y));
-    let o2 = sign(orient_raw(a0x, a0y, a1x, a1y, b1x, b1y));
-    let o3 = sign(orient_raw(b0x, b0y, b1x, b1y, a0x, a0y));
-    let o4 = sign(orient_raw(b0x, b0y, b1x, b1y, a1x, a1y));
+
+    let a0x = gx(a, a0);
+    let a0y = gy(a, a0);
+    let a1x = gx(a, a1);
+    let a1y = gy(a, a1);
+    let b0x = gx(b, b0);
+    let b0y = gy(b, b0);
+    let b1x = gx(b, b1);
+    let b1y = gy(b, b1);
+
+    let o1 = orient_raw(a0x, a0y, a1x, a1y, b0x, b0y).signum();
+    let o2 = orient_raw(a0x, a0y, a1x, a1y, b1x, b1y).signum();
+    let o3 = orient_raw(b0x, b0y, b1x, b1y, a0x, a0y).signum();
+    let o4 = orient_raw(b0x, b0y, b1x, b1y, a1x, a1y).signum();
 
     (o1 != o2 && o3 != o4)
-        || (o1 == 0 && on_seg(a0x, a0y, a1x, a1y, b0x, b0y))
-        || (o2 == 0 && on_seg(a0x, a0y, a1x, a1y, b1x, b1y))
-        || (o3 == 0 && on_seg(b0x, b0y, b1x, b1y, a0x, a0y))
-        || (o4 == 0 && on_seg(b0x, b0y, b1x, b1y, a1x, a1y))
-}
-
-fn segments_intersect_polly(
-    a: &[u16],
-    a0: usize,
-    a1: usize,
-    b: &[u16],
-    b0: usize,
-    b1: usize,
-) -> bool {
-    segments_intersect(
-        gx(a, a0),
-        gy(a, a0),
-        gx(a, a1),
-        gy(a, a1),
-        gx(b, b0),
-        gy(b, b0),
-        gx(b, b1),
-        gy(b, b1),
-    )
+        || (o1 == 0 && on_seg(a, a0, a1, b, b0))
+        || (o2 == 0 && on_seg(a, a0, a1, b, b1))
+        || (o3 == 0 && on_seg(b, b0, b1, a, a0))
+        || (o4 == 0 && on_seg(b, b0, b1, a, a1))
 }
 
 // ── Linked-list state for contour operations ──────────────────────────────────
@@ -210,7 +187,7 @@ impl LinkedState {
             let e1 = self.next[e0];
             let skip =
                 e0 == prev || e1 == prev || e0 == curr || e1 == curr || e0 == next || e1 == next;
-            if !skip && segments_intersect_polly(&self.pts, prev, next, &self.pts, e0, e1) {
+            if !skip && segments_intersect(&self.pts, prev, next, &self.pts, e0, e1) {
                 return true;
             }
             e0 = self.next[e0];
@@ -400,13 +377,13 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
         for eb in (ea + 1)..m {
             let b0 = kept[eb];
             let b1 = kept[(eb + 1) % m];
-            
+
             if !(rdp_is_adjacent(ea, eb, m)
                 || rdp_same_pt(pts, a0, b0)
                 || rdp_same_pt(pts, a0, b1)
                 || rdp_same_pt(pts, a1, b0)
                 || rdp_same_pt(pts, a1, b1))
-                && segments_intersect_polly(pts, a0, a1, pts, b0, b1)
+                && segments_intersect(pts, a0, a1, pts, b0, b1)
             {
                 return Some((ea, eb));
             }
@@ -1068,7 +1045,7 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
             let j = (i + 1) % n;
             if !shares(ca, cb, i, j)
                 && !in_changed(i, j, &changed)
-                && segments_intersect_polly(&poly.pts, ca, cb, &poly.pts, i, j)
+                && segments_intersect(&poly.pts, ca, cb, &poly.pts, i, j)
             {
                 return true;
             }
@@ -1078,9 +1055,7 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
         let (a0, a1) = changed[ii];
         for jj in (ii + 1)..changed.len() {
             let (b0, b1) = changed[jj];
-            if !shares(a0, a1, b0, b1)
-                && segments_intersect_polly(&poly.pts, a0, a1, &poly.pts, b0, b1)
-            {
+            if !shares(a0, a1, b0, b1) && segments_intersect(&poly.pts, a0, a1, &poly.pts, b0, b1) {
                 return true;
             }
         }
@@ -1348,7 +1323,7 @@ fn pg_contours_intersect(a: &[u16], b: &[u16]) -> bool {
         let i2 = (i + 1) % na;
         for j in 0..nb {
             let j2 = (j + 1) % nb;
-            if segments_intersect_polly(a, i, i2, b, j, j2) {
+            if segments_intersect(a, i, i2, b, j, j2) {
                 return true;
             }
         }
