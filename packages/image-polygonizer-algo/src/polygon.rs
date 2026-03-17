@@ -1,6 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{dist2i, gx, gy, orient_poly, polygon_signed_area2};
+use crate::utils::{dist2i, gx, gy, orient_poly, polygon_signed_area2, triangle_angle};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -462,11 +462,9 @@ fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
 // ── Step 2: iterative relax+simplify ─────────────────────────────────────────
 
 fn interior_angle_rad(pts: &[u16], a: usize, b: usize, c: usize, orientation_sign: i8) -> f32 {
+    let small_angle = triangle_angle(pts, b, a, c);
 
-
-    let l1_sq = dist2i(pts, b, a);
-    let l2_sq = dist2i(pts, b, c);
-    if l1_sq == 0 || l2_sq == 0 {
+    if small_angle == 0.0 {
         return 0.0;
     }
     let ax = gx(pts, a);
@@ -479,10 +477,6 @@ fn interior_angle_rad(pts: &[u16], a: usize, b: usize, c: usize, orientation_sig
     let v1y = (ay as i16 - by as i16) as f32;
     let v2x = (cx as i16 - bx as i16) as f32;
     let v2y = (cy as i16 - by as i16) as f32;
-    let l1 = (l1_sq as f32).sqrt();
-    let l2 = (l2_sq as f32).sqrt();
-    let cos = ((v1x * v2x + v1y * v2y) / (l1 * l2)).clamp(-1.0, 1.0);
-    let small_angle = cos.acos();
     // cross = v1 × v2 = -cross2(ax,ay,bx,by,cx,cy), so comparisons are flipped
     let cross = v1x * v2y - v1y * v2x;
     let is_convex = orientation_sign > 0 && cross < 0.0 || cross > 0.0;
