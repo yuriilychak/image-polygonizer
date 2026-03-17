@@ -69,24 +69,19 @@ fn normalize_contour(pts: &[u16]) -> Vec<u16> {
     }
 }
 
-/// cross2: (B-A) × (C-B)
 #[inline]
-fn cross2(ax: u16, ay: u16, bx: u16, by: u16, cx: u16, cy: u16) -> i32 {
+fn cross2(pts: &[u16], a: usize, b: usize, c: usize, pts2: Option<&[u16]>) -> i32 {
+    let (ax, ay) = (gx(pts, a), gy(pts, a));
+    let (bx, by) = (gx(pts, b), gy(pts, b));
+    let (cx, cy) = if let Some(pts2) = pts2 {
+        (gx(pts2, c), gy(pts2, c))
+    } else {
+        (gx(pts, c), gy(pts, c))
+    };
+
     let (bax, cby) = (bx as i16 - ax as i16, cy as i16 - by as i16);
     let (bay, cbx) = (by as i16 - ay as i16, cx as i16 - bx as i16);
     bax as i32 * cby as i32 - bay as i32 * cbx as i32
-}
-
-#[inline]
-fn cross2_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
-    cross2(
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
-    )
 }
 
 #[inline]
@@ -305,7 +300,7 @@ fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f32 {
     if len_sq == 0 {
         return dist2i_poly(pts, a, p) as f32;
     }
-    let cross = cross2_poly(pts, a, b, p);
+    let cross = cross2(pts, a, b, p, None);
     cross as f32 * cross as f32 / len_sq as f32
 }
 
@@ -479,15 +474,14 @@ fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
 
 // ── Step 2: iterative relax+simplify ─────────────────────────────────────────
 
-fn interior_angle_rad(
-    ax: u16,
-    ay: u16,
-    bx: u16,
-    by: u16,
-    cx: u16,
-    cy: u16,
-    orientation_sign: i8,
-) -> f32 {
+fn interior_angle_rad(pts: &[u16], a: usize, b: usize, c: usize, orientation_sign: i8) -> f32 {
+    let ax = gx(pts, a);
+    let ay = gy(pts, a);
+    let bx = gx(pts, b);
+    let by = gy(pts, b);
+    let cx = gx(pts, c);
+    let cy = gy(pts, c);
+
     let l1_sq = dist2i(bx, by, ax, ay);
     let l2_sq = dist2i(bx, by, cx, cy);
     if l1_sq == 0 || l2_sq == 0 {
@@ -545,20 +539,14 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
-            let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
-            let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
-            let cross = cross2_poly(&state.pts, prev, curr, next);
+            let cross = cross2(&state.pts, prev, curr, next, None);
             let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
-            if !is_concave {
-                continue;
-            }
-            let pit_area = cross.abs() as f32;
-            let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
-            if pit_area > threshold && angle <= hole_angle_rad {
-                continue;
-            }
-            if state.would_create_self_intersection_after_removal(curr) {
+            if !is_concave
+                || cross.abs() as f32 > threshold
+                    && interior_angle_rad(&state.pts, prev, curr, next, orient_sign)
+                        <= hole_angle_rad
+                || state.would_create_self_intersection_after_removal(curr)
+            {
                 continue;
             }
             state.remove(curr);
@@ -606,22 +594,18 @@ fn remove_obtuse_humps(
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
-            let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
-            let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
-            let cross = cross2_poly(&state.pts, prev, curr, next);
+            let cross = cross2(&state.pts, prev, curr, next, None);
             let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
                 continue;
             }
             let hump_area = cross.abs() as f32;
-            let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
+            let angle = interior_angle_rad(&state.pts, prev, curr, next, orient_sign);
             let remove_by_angle = angle > angle_threshold_rad;
             let remove_by_area = angle > pick_angle_rad && hump_area <= threshold;
-            if !remove_by_angle && !remove_by_area {
-                continue;
-            }
-            if state.would_create_self_intersection_after_removal(curr) {
+            if !remove_by_angle && !remove_by_area
+                || state.would_create_self_intersection_after_removal(curr)
+            {
                 continue;
             }
             state.remove(curr);
@@ -683,15 +667,14 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let cross = cross2_poly(&state.pts, prev, cur, next);
+                let cross = cross2(&state.pts, prev, cur, next, None);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
-                if is_concave {
-                    let area = cross.abs();
-                    if area < best_area && !state.would_create_self_intersection_after_removal(cur)
-                    {
-                        best_area = area;
-                        best_idx = cur as i32;
-                    }
+                if is_concave
+                    && cross.abs() < best_area
+                    && !state.would_create_self_intersection_after_removal(cur)
+                {
+                    best_area = cross.abs();
+                    best_idx = cur as i32;
                 }
             }
             cur = state.next[cur];
@@ -996,7 +979,7 @@ fn point_on_seg_i32(poly: &[u16], a: usize, b: usize, witnesses: &[u16], p: usiz
     let by = gy(poly, b);
     let px = gx(witnesses, p);
     let py = gy(witnesses, p);
-    cross2(ax, ay, bx, by, px, py) == 0
+    cross2(&poly, a, b, p, Some(witnesses)) == 0
         && px >= ax.min(bx)
         && px <= ax.max(bx)
         && py >= ay.min(by)
@@ -1081,10 +1064,12 @@ fn all_witnesses_inside(
     for i in 0..nw {
         let wx = gx(witnesses, i) as i32;
         let wy = gy(witnesses, i) as i32;
-        if wx < min_x || wx > max_x || wy < min_y || wy > max_y {
-            continue;
-        }
-        if !point_in_poly_or_on_edge(poly, witnesses, i) {
+        if wx >= min_x
+            && wx <= max_x
+            && wy >= min_y
+            && wy <= max_y
+            && !point_in_poly_or_on_edge(poly, witnesses, i)
+        {
             return false;
         }
     }
@@ -1213,13 +1198,9 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             let max_x = xs.iter().copied().max().unwrap() + 2;
             let min_y = ys.iter().copied().min().unwrap() - 2;
             let max_y = ys.iter().copied().max().unwrap() + 2;
-            if !all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y) {
-                poly.set(i1, cur_ax, cur_ay);
-                poly.set(i2, cur_bx, cur_by);
-                break;
-            }
-            let area_after = poly.signed_area2().abs();
-            if area_after >= area_before {
+            if !all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y)
+                || poly.signed_area2().abs() >= area_before
+            {
                 poly.set(i1, cur_ax, cur_ay);
                 poly.set(i2, cur_bx, cur_by);
                 break;
