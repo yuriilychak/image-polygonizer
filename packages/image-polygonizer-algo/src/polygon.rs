@@ -201,10 +201,6 @@ impl LinkedState {
         }
         let prev = self.prev[curr];
         let next = self.next[curr];
-        let ax = gx(&self.pts, prev);
-        let ay = gy(&self.pts, prev);
-        let bx = gx(&self.pts, next);
-        let by = gy(&self.pts, next);
         let start = match self.alive.iter().position(|&a| a) {
             Some(s) => s,
             None => return false,
@@ -214,14 +210,8 @@ impl LinkedState {
             let e1 = self.next[e0];
             let skip =
                 e0 == prev || e1 == prev || e0 == curr || e1 == curr || e0 == next || e1 == next;
-            if !skip {
-                let c0x = gx(&self.pts, e0);
-                let c0y = gy(&self.pts, e0);
-                let c1x = gx(&self.pts, e1);
-                let c1y = gy(&self.pts, e1);
-                if segments_intersect(ax, ay, bx, by, c0x, c0y, c1x, c1y) {
-                    return true;
-                }
+            if !skip && segments_intersect_polly(&self.pts, prev, next, &self.pts, e0, e1) {
+                return true;
             }
             e0 = self.next[e0];
             if e0 == start {
@@ -407,28 +397,17 @@ fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usi
     for ea in 0..m {
         let a0 = kept[ea];
         let a1 = kept[(ea + 1) % m];
-        let a0x = gx(pts, a0);
-        let a0y = gy(pts, a0);
-        let a1x = gx(pts, a1);
-        let a1y = gy(pts, a1);
         for eb in (ea + 1)..m {
-            if rdp_is_adjacent(ea, eb, m) {
-                continue;
-            }
             let b0 = kept[eb];
             let b1 = kept[(eb + 1) % m];
-            if rdp_same_pt(pts, a0, b0)
+            
+            if !(rdp_is_adjacent(ea, eb, m)
+                || rdp_same_pt(pts, a0, b0)
                 || rdp_same_pt(pts, a0, b1)
                 || rdp_same_pt(pts, a1, b0)
-                || rdp_same_pt(pts, a1, b1)
+                || rdp_same_pt(pts, a1, b1))
+                && segments_intersect_polly(pts, a0, a1, pts, b0, b1)
             {
-                continue;
-            }
-            let b0x = gx(pts, b0);
-            let b0y = gy(pts, b0);
-            let b1x = gx(pts, b1);
-            let b1y = gy(pts, b1);
-            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
                 return Some((ea, eb));
             }
         }
