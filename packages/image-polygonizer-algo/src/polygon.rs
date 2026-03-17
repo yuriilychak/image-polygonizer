@@ -162,13 +162,6 @@ impl LinkedState {
         }
     }
 
-    fn px(&self, i: usize) -> u16 {
-        gx(&self.pts, i)
-    }
-    fn py(&self, i: usize) -> u16 {
-        gy(&self.pts, i)
-    }
-
     fn signed_area2(&self) -> i32 {
         polygon_signed_area2(&self.materialize())
     }
@@ -188,10 +181,10 @@ impl LinkedState {
         }
         let prev = self.prev[curr];
         let next = self.next[curr];
-        let ax = self.px(prev);
-        let ay = self.py(prev);
-        let bx = self.px(next);
-        let by = self.py(next);
+        let ax = gx(&self.pts, prev);
+        let ay = gy(&self.pts, prev);
+        let bx = gx(&self.pts, next);
+        let by = gy(&self.pts, next);
         let start = match self.alive.iter().position(|&a| a) {
             Some(s) => s,
             None => return false,
@@ -202,10 +195,10 @@ impl LinkedState {
             let skip =
                 e0 == prev || e1 == prev || e0 == curr || e1 == curr || e0 == next || e1 == next;
             if !skip {
-                let c0x = self.px(e0);
-                let c0y = self.py(e0);
-                let c1x = self.px(e1);
-                let c1y = self.py(e1);
+                let c0x = gx(&self.pts, e0);
+                let c0y = gy(&self.pts, e0);
+                let c1x = gx(&self.pts, e1);
+                let c1y = gy(&self.pts, e1);
                 if segments_intersect(ax, ay, bx, by, c0x, c0y, c1x, c1y) {
                     return true;
                 }
@@ -576,9 +569,9 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev), state.py(prev));
-            let (bx, by) = (state.px(curr), state.py(curr));
-            let (cx, cy) = (state.px(next), state.py(next));
+            let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
+            let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
+            let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
             let cross = cross2(ax, ay, bx, by, cx, cy);
             let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
             if !is_concave {
@@ -637,9 +630,9 @@ fn remove_obtuse_humps(
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let (ax, ay) = (state.px(prev), state.py(prev));
-            let (bx, by) = (state.px(curr), state.py(curr));
-            let (cx, cy) = (state.px(next), state.py(next));
+            let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
+            let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
+            let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
             let cross = cross2(ax, ay, bx, by, cx, cy);
             let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
@@ -714,9 +707,9 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let (ax, ay) = (state.px(prev), state.py(prev));
-                let (bx, by) = (state.px(cur), state.py(cur));
-                let (cx, cy) = (state.px(next), state.py(next));
+                let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
+                let (bx, by) = (gx(&state.pts, cur), gy(&state.pts, cur));
+                let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
                 let cross = cross2(ax, ay, bx, by, cx, cy);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave {
@@ -982,12 +975,6 @@ impl SlidingPoly {
     fn count(&self) -> usize {
         self.pts.len() / 2
     }
-    fn px(&self, i: usize) -> u16 {
-        gx(&self.pts, i)
-    }
-    fn py(&self, i: usize) -> u16 {
-        gy(&self.pts, i)
-    }
     fn set(&mut self, i: usize, x: i32, y: i32) {
         self.pts[i * 2] = x as u16;
         self.pts[i * 2 + 1] = y as u16;
@@ -1042,8 +1029,8 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (poly.px(i), poly.py(i));
-        let (xj, yj) = (poly.px(j), poly.py(j));
+        let (xi, yi) = (gx(&poly.pts, i), gy(&poly.pts, i));
+        let (xj, yj) = (gx(&poly.pts, j), gy(&poly.pts, j));
         if point_on_seg_i32(xj, yj, xi, yi, px as u16, py as u16) {
             return true;
         }
@@ -1072,10 +1059,10 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
         ch.iter().any(|&(x, y)| x == a && y == b)
     }
     for &(ca, cb) in &changed {
-        let a0x = poly.px(ca);
-        let a0y = poly.py(ca);
-        let a1x = poly.px(cb);
-        let a1y = poly.py(cb);
+        let a0x = gx(&poly.pts, ca);
+        let a0y = gy(&poly.pts, ca);
+        let a1x = gx(&poly.pts, cb);
+        let a1y = gy(&poly.pts, cb);
         for i in 0..n {
             let j = (i + 1) % n;
             if shares(ca, cb, i, j) {
@@ -1084,10 +1071,10 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
             if in_changed(i, j, &changed) {
                 continue;
             }
-            let b0x = poly.px(i);
-            let b0y = poly.py(i);
-            let b1x = poly.px(j);
-            let b1y = poly.py(j);
+            let b0x = gx(&poly.pts, i);
+            let b0y = gy(&poly.pts, i);
+            let b1x = gx(&poly.pts, j);
+            let b1y = gy(&poly.pts, j);
             if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
                 return true;
             }
@@ -1095,19 +1082,19 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
     }
     for ii in 0..changed.len() {
         let (a0, a1) = changed[ii];
-        let a0x = poly.px(a0);
-        let a0y = poly.py(a0);
-        let a1x = poly.px(a1);
-        let a1y = poly.py(a1);
+        let a0x = gx(&poly.pts, a0);
+        let a0y = gy(&poly.pts, a0);
+        let a1x = gx(&poly.pts, a1);
+        let a1y = gy(&poly.pts, a1);
         for jj in (ii + 1)..changed.len() {
             let (b0, b1) = changed[jj];
             if shares(a0, a1, b0, b1) {
                 continue;
             }
-            let b0x = poly.px(b0);
-            let b0y = poly.py(b0);
-            let b1x = poly.px(b1);
-            let b1y = poly.py(b1);
+            let b0x = gx(&poly.pts, b0);
+            let b0y = gy(&poly.pts, b0);
+            let b1x = gx(&poly.pts, b1);
+            let b1y = gy(&poly.pts, b1);
             if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
                 return true;
             }
@@ -1117,9 +1104,9 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
 }
 
 fn has_degenerate_local(poly: &SlidingPoly, i0: usize, i1: usize, i2: usize, i3: usize) -> bool {
-    (poly.px(i0) == poly.px(i1) && poly.py(i0) == poly.py(i1))
-        || (poly.px(i1) == poly.px(i2) && poly.py(i1) == poly.py(i2))
-        || (poly.px(i2) == poly.px(i3) && poly.py(i2) == poly.py(i3))
+    (gx(&poly.pts, i0) == gx(&poly.pts, i1) && gy(&poly.pts, i0) == gy(&poly.pts, i1))
+        || (gx(&poly.pts, i1) == gx(&poly.pts, i2) && gy(&poly.pts, i1) == gy(&poly.pts, i2))
+        || (gx(&poly.pts, i2) == gx(&poly.pts, i3) && gy(&poly.pts, i2) == gy(&poly.pts, i3))
 }
 
 fn all_witnesses_inside(
@@ -1173,8 +1160,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         let cur_area = poly.signed_area2().abs();
         let mut best_area = cur_area;
         let mut best_step: Option<(i32, i32)> = None;
-        let (old_ax, old_ay) = (poly.px(i1) as i32, poly.py(i1) as i32);
-        let (old_bx, old_by) = (poly.px(i2) as i32, poly.py(i2) as i32);
+        let (old_ax, old_ay) = (gx(&poly.pts, i1) as i32, gy(&poly.pts, i1) as i32);
+        let (old_bx, old_by) = (gx(&poly.pts, i2) as i32, gy(&poly.pts, i2) as i32);
         for &(sa, sb) in &steps {
             let ax = old_ax + dir_a.0 * sa;
             let ay = old_ay + dir_a.1 * sa;
@@ -1195,18 +1182,18 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             let area = poly.signed_area2().abs();
             if area < best_area {
                 let xs = [
-                    poly.px(i0) as i32,
+                    gx(&poly.pts, i0) as i32,
                     ax,
                     bx,
-                    poly.px(i3) as i32,
+                    gx(&poly.pts, i3) as i32,
                     old_ax,
                     old_bx,
                 ];
                 let ys = [
-                    poly.py(i0) as i32,
+                    gy(&poly.pts, i0) as i32,
                     ay,
                     by,
-                    poly.py(i3) as i32,
+                    gy(&poly.pts, i3) as i32,
                     old_ay,
                     old_by,
                 ];
@@ -1227,8 +1214,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         };
         let mut moved = false;
         loop {
-            let (cur_ax, cur_ay) = (poly.px(i1) as i32, poly.py(i1) as i32);
-            let (cur_bx, cur_by) = (poly.px(i2) as i32, poly.py(i2) as i32);
+            let (cur_ax, cur_ay) = (gx(&poly.pts, i1) as i32, gy(&poly.pts, i1) as i32);
+            let (cur_bx, cur_by) = (gx(&poly.pts, i2) as i32, gy(&poly.pts, i2) as i32);
             let next_ax = cur_ax + dir_a.0 * sa;
             let next_ay = cur_ay + dir_a.1 * sa;
             let next_bx = cur_bx + dir_b.0 * sb;
@@ -1247,18 +1234,18 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 break;
             }
             let xs = [
-                poly.px(i0) as i32,
+                gx(&poly.pts, i0) as i32,
                 next_ax,
                 next_bx,
-                poly.px(i3) as i32,
+                gx(&poly.pts, i3) as i32,
                 cur_ax,
                 cur_bx,
             ];
             let ys = [
-                poly.py(i0) as i32,
+                gy(&poly.pts, i0) as i32,
                 next_ay,
                 next_by,
-                poly.py(i3) as i32,
+                gy(&poly.pts, i3) as i32,
                 cur_ay,
                 cur_by,
             ];
