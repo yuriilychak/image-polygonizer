@@ -1,7 +1,7 @@
 // ── triangulation ─────────────────────────────────────────────────────────────
 
 use crate::utils::{
-    gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
+    dist2i_poly, gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
     polygon_signed_area, triangle_max_angle, triangle_min_angle,
 };
 
@@ -233,12 +233,6 @@ fn pair_angles(pts: &[u16], u: usize, v: usize, w1: usize, w2: usize) -> (f32, f
     (min1.min(min2), max1.max(max2))
 }
 
-fn diag_len_sq(pts: &[u16], a: usize, b: usize) -> i32 {
-    let dx = gx(pts, a) as i32 - gx(pts, b) as i32;
-    let dy = gy(pts, a) as i32 - gy(pts, b) as i32;
-    dx * dx + dy * dy
-}
-
 // ── Phase 1: basic Lawson flip ────────────────────────────────────────────────
 // Port of `optimizeTrianglesByEdgeFlip` in triangulate.ts.
 fn flip_edges_basic(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>) {
@@ -318,8 +312,8 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>, max_pa
             }
             let (min_b, max_b) = pair_angles(pts, eu, ev, w1, w2);
             let (min_a, max_a) = pair_angles(pts, w1, w2, eu, ev);
-            let diag_b = diag_len_sq(pts, eu, ev);
-            let diag_a = diag_len_sq(pts, w1, w2);
+            let diag_b = dist2i_poly(pts, eu, ev);
+            let diag_a = dist2i_poly(pts, w1, w2);
             const EPS: f32 = 1e-6;
             let min_dif = min_a - min_b;
             let max_dif = max_a - max_b;

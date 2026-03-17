@@ -980,10 +980,10 @@ impl SlidingPoly {
         self.pts.len() / 2
     }
     fn px(&self, i: usize) -> u16 {
-        self.pts[i * 2]
+        gx(&self.pts, i)
     }
     fn py(&self, i: usize) -> u16 {
-        self.pts[i * 2 + 1]
+        gy(&self.pts, i)
     }
     fn set(&mut self, i: usize, x: i32, y: i32) {
         self.pts[i * 2] = x as u16;
@@ -994,14 +994,7 @@ impl SlidingPoly {
         ((i % n + n) % n) as usize
     }
     fn signed_area(&self) -> f32 {
-        let n = self.count();
-        let mut sum = 0.0f32;
-        for i in 0..n {
-            let j = (i + 1) % n;
-            sum += self.px(i) as i32 as f32 * self.py(j) as i32 as f32
-                - self.px(j) as i32 as f32 * self.py(i) as i32 as f32;
-        }
-        sum * 0.5
+        polygon_signed_area(&self.pts)
     }
     fn to_u16(&self) -> Vec<u16> {
         self.pts.iter().map(|&v| v as u16).collect()
@@ -1023,7 +1016,9 @@ fn gcd_i(a: i32, b: i32) -> i32 {
     }
 }
 
-fn primitive_dir(dx: i32, dy: i32) -> (i32, i32) {
+fn primitive_dir(pts: &[u16], a: usize, b: usize) -> (i32, i32) {
+    let dx = gx(pts, a) as i32 - gx(pts, b) as i32;
+    let dy = gy(pts, a) as i32 - gy(pts, b) as i32;
     if dx == 0 && dy == 0 {
         return (0, 0);
     }
@@ -1155,14 +1150,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
     let i1 = edge_start;
     let i2 = poly.mod_idx(edge_start as i32 + 1);
     let i3 = poly.mod_idx(edge_start as i32 + 2);
-    let dir_a = primitive_dir(
-        poly.px(i1) as i32 - poly.px(i0) as i32,
-        poly.py(i1) as i32 - poly.py(i0) as i32,
-    );
-    let dir_b = primitive_dir(
-        poly.px(i2) as i32 - poly.px(i3) as i32,
-        poly.py(i2) as i32 - poly.py(i3) as i32,
-    );
+    let dir_a = primitive_dir(&poly.pts, i1, i0);
+    let dir_b = primitive_dir(&poly.pts, i2, i3);
     if dir_a == (0, 0) || dir_b == (0, 0) {
         return false;
     }
