@@ -1,6 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_poly, polygon_signed_area2};
+use crate::utils::{dist2i, gx, gy, orient_poly, polygon_signed_area2};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ fn rdp_find_farthest(pts: &[u16], n: usize, anchor: usize) -> usize {
         if i == anchor {
             continue;
         }
-        let d = dist2i_poly(pts, i, anchor);
+        let d = dist2i(pts, i, anchor);
         if d > best_d {
             best_d = d;
             best = i;
@@ -283,9 +283,9 @@ fn rdp_build_arc(n: usize, start: usize, end: usize) -> Vec<usize> {
 }
 
 fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f32 {
-    let len_sq = dist2i_poly(pts, a, b);
+    let len_sq = dist2i(pts, a, b);
     if len_sq == 0 {
-        return dist2i_poly(pts, a, p) as f32;
+        return dist2i(pts, a, p) as f32;
     }
     let cross = cross2(pts, pts, a, b, p);
     cross as f32 * cross as f32 / len_sq as f32
@@ -462,18 +462,19 @@ fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
 // ── Step 2: iterative relax+simplify ─────────────────────────────────────────
 
 fn interior_angle_rad(pts: &[u16], a: usize, b: usize, c: usize, orientation_sign: i8) -> f32 {
+
+
+    let l1_sq = dist2i(pts, b, a);
+    let l2_sq = dist2i(pts, b, c);
+    if l1_sq == 0 || l2_sq == 0 {
+        return 0.0;
+    }
     let ax = gx(pts, a);
     let ay = gy(pts, a);
     let bx = gx(pts, b);
     let by = gy(pts, b);
     let cx = gx(pts, c);
     let cy = gy(pts, c);
-
-    let l1_sq = dist2i(bx, by, ax, ay);
-    let l2_sq = dist2i(bx, by, cx, cy);
-    if l1_sq == 0 || l2_sq == 0 {
-        return 0.0;
-    }
     let v1x = (ax as i16 - bx as i16) as f32;
     let v1y = (ay as i16 - by as i16) as f32;
     let v2x = (cx as i16 - bx as i16) as f32;
@@ -838,7 +839,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
     let mut lines: Vec<(f32, f32, f32)> = Vec::with_capacity(ns);
     for i in 0..ns {
         let j = (i + 1) % ns;
-        let len_sq = dist2i_poly(&simp, i, j);
+        let len_sq = dist2i(&simp, i, j);
         if len_sq == 0 {
             return simp;
         }

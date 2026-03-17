@@ -1,7 +1,7 @@
 // ── triangulation ─────────────────────────────────────────────────────────────
 
 use crate::utils::{
-    dist2i_poly, gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
+    dist2i, gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
     polygon_signed_area2, triangle_max_angle, triangle_min_angle,
 };
 
@@ -157,7 +157,7 @@ fn is_ear(
         if px < min_x || px > max_x || py < min_y || py > max_y {
             continue;
         }
-        if point_in_triangle_or_on_edge(px, py, ax, ay, bx, by, cx, cy) {
+        if point_in_triangle_or_on_edge(pts, p, a, b, c) {
             return false;
         }
     }
@@ -312,8 +312,8 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>, max_pa
             }
             let (min_b, max_b) = pair_angles(pts, eu, ev, w1, w2);
             let (min_a, max_a) = pair_angles(pts, w1, w2, eu, ev);
-            let diag_b = dist2i_poly(pts, eu, ev);
-            let diag_a = dist2i_poly(pts, w1, w2);
+            let diag_b = dist2i(pts, eu, ev);
+            let diag_a = dist2i(pts, w1, w2);
             const EPS: f32 = 1e-6;
             let min_dif = min_a - min_b;
             let max_dif = max_a - max_b;
