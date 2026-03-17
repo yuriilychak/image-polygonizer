@@ -137,6 +137,26 @@ fn segments_intersect(
         || (o4 == 0 && on_seg(b0x, b0y, b1x, b1y, a1x, a1y))
 }
 
+fn segments_intersect_polly(
+    a: &[u16],
+    a0: usize,
+    a1: usize,
+    b: &[u16],
+    b0: usize,
+    b1: usize,
+) -> bool {
+    segments_intersect(
+        gx(a, a0),
+        gy(a, a0),
+        gx(a, a1),
+        gy(a, a1),
+        gx(b, b0),
+        gy(b, b0),
+        gx(b, b1),
+        gy(b, b1),
+    )
+}
+
 // ── Linked-list state for contour operations ──────────────────────────────────
 
 struct LinkedState {
@@ -572,7 +592,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
             let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
             let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
             let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
-            let cross = cross2(ax, ay, bx, by, cx, cy);
+            let cross = cross2_poly(&state.pts, prev, curr, next);
             let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
             if !is_concave {
                 continue;
@@ -633,7 +653,7 @@ fn remove_obtuse_humps(
             let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
             let (bx, by) = (gx(&state.pts, curr), gy(&state.pts, curr));
             let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
-            let cross = cross2(ax, ay, bx, by, cx, cy);
+            let cross = cross2_poly(&state.pts, prev, curr, next);
             let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
                 continue;
@@ -707,10 +727,7 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let (ax, ay) = (gx(&state.pts, prev), gy(&state.pts, prev));
-                let (bx, by) = (gx(&state.pts, cur), gy(&state.pts, cur));
-                let (cx, cy) = (gx(&state.pts, next), gy(&state.pts, next));
-                let cross = cross2(ax, ay, bx, by, cx, cy);
+                let cross = cross2_poly(&state.pts, prev, cur, next);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave {
                     let area = cross.abs();
@@ -1016,7 +1033,13 @@ fn primitive_dir(pts: &[u16], a: usize, b: usize) -> (i32, i32) {
     (dx / g, dy / g)
 }
 
-fn point_on_seg_i32(ax: u16, ay: u16, bx: u16, by: u16, px: u16, py: u16) -> bool {
+fn point_on_seg_i32(poly: &[u16], a: usize, b: usize, witnesses: &[u16], p: usize) -> bool {
+    let ax = gx(poly, a);
+    let ay = gy(poly, a);
+    let bx = gx(poly, b);
+    let by = gy(poly, b);
+    let px = gx(witnesses, p);
+    let py = gy(witnesses, p);
     cross2(ax, ay, bx, by, px, py) == 0
         && px >= ax.min(bx)
         && px <= ax.max(bx)
@@ -1024,16 +1047,19 @@ fn point_on_seg_i32(ax: u16, ay: u16, bx: u16, by: u16, px: u16, py: u16) -> boo
         && py <= ay.max(by)
 }
 
-fn point_in_poly_or_on_edge(poly: &SlidingPoly, px: i32, py: i32) -> bool {
+fn point_in_poly_or_on_edge(poly: &SlidingPoly, witnesses: &[u16], witness_idx: usize) -> bool {
+    let px = gx(witnesses, witness_idx) as i32;
+    let py = gy(witnesses, witness_idx) as i32;
+
     let n = poly.count();
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (gx(&poly.pts, i), gy(&poly.pts, i));
-        let (xj, yj) = (gx(&poly.pts, j), gy(&poly.pts, j));
-        if point_on_seg_i32(xj, yj, xi, yi, px as u16, py as u16) {
+        if point_on_seg_i32(&poly.pts, j, i, witnesses, witness_idx) {
             return true;
         }
+        let (xi, yi) = (gx(&poly.pts, i), gy(&poly.pts, i));
+        let (xj, yj) = (gx(&poly.pts, j), gy(&poly.pts, j));
         if (yi as i32 > py) != (yj as i32 > py) {
             let t = (xj as i32 - xi as i32) as f32 * (py - yi as i32) as f32
                 / (yj as i32 - yi as i32) as f32
@@ -1059,43 +1085,23 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
         ch.iter().any(|&(x, y)| x == a && y == b)
     }
     for &(ca, cb) in &changed {
-        let a0x = gx(&poly.pts, ca);
-        let a0y = gy(&poly.pts, ca);
-        let a1x = gx(&poly.pts, cb);
-        let a1y = gy(&poly.pts, cb);
         for i in 0..n {
             let j = (i + 1) % n;
-            if shares(ca, cb, i, j) {
-                continue;
-            }
-            if in_changed(i, j, &changed) {
-                continue;
-            }
-            let b0x = gx(&poly.pts, i);
-            let b0y = gy(&poly.pts, i);
-            let b1x = gx(&poly.pts, j);
-            let b1y = gy(&poly.pts, j);
-            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
+            if !shares(ca, cb, i, j)
+                && !in_changed(i, j, &changed)
+                && segments_intersect_polly(&poly.pts, ca, cb, &poly.pts, i, j)
+            {
                 return true;
             }
         }
     }
     for ii in 0..changed.len() {
         let (a0, a1) = changed[ii];
-        let a0x = gx(&poly.pts, a0);
-        let a0y = gy(&poly.pts, a0);
-        let a1x = gx(&poly.pts, a1);
-        let a1y = gy(&poly.pts, a1);
         for jj in (ii + 1)..changed.len() {
             let (b0, b1) = changed[jj];
-            if shares(a0, a1, b0, b1) {
-                continue;
-            }
-            let b0x = gx(&poly.pts, b0);
-            let b0y = gy(&poly.pts, b0);
-            let b1x = gx(&poly.pts, b1);
-            let b1y = gy(&poly.pts, b1);
-            if segments_intersect(a0x, a0y, a1x, a1y, b0x, b0y, b1x, b1y) {
+            if !shares(a0, a1, b0, b1)
+                && segments_intersect_polly(&poly.pts, a0, a1, &poly.pts, b0, b1)
+            {
                 return true;
             }
         }
@@ -1124,7 +1130,7 @@ fn all_witnesses_inside(
         if wx < min_x || wx > max_x || wy < min_y || wy > max_y {
             continue;
         }
-        if !point_in_poly_or_on_edge(poly, wx, wy) {
+        if !point_in_poly_or_on_edge(poly, witnesses, i) {
             return false;
         }
     }
@@ -1322,7 +1328,10 @@ fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
     (min_x, min_y, max_x, max_y)
 }
 
-fn pg_point_in_poly_or_edge(poly: &[u16], px: u16, py: u16) -> bool {
+fn pg_point_in_poly_or_edge(poly: &[u16], inner: &[u16]) -> bool {
+    let px = gx(inner, 0);
+    let py = gy(inner, 0);
+
     let n = poly.len() / 2;
     let mut inside = false;
     let mut j = n - 1;
@@ -1358,11 +1367,9 @@ fn pg_contours_intersect(a: &[u16], b: &[u16]) -> bool {
     let nb = b.len() / 2;
     for i in 0..na {
         let i2 = (i + 1) % na;
-        let (a0x, a0y) = (gx(a, i), gy(a, i));
-        let (a1x, a1y) = (gx(a, i2), gy(a, i2));
         for j in 0..nb {
             let j2 = (j + 1) % nb;
-            if segments_intersect(a0x, a0y, a1x, a1y, gx(b, j), gy(b, j), gx(b, j2), gy(b, j2)) {
+            if segments_intersect_polly(a, i, i2, b, j, j2) {
                 return true;
             }
         }
@@ -1374,7 +1381,7 @@ fn pg_is_inside(inner: &[u16], outer: &[u16]) -> bool {
     inner.len() >= 6
         && outer.len() >= 6
         && !pg_contours_intersect(inner, outer)
-        && pg_point_in_poly_or_edge(outer, gx(inner, 0), gy(inner, 0))
+        && pg_point_in_poly_or_edge(outer, inner)
 }
 
 fn bbox_contains(bboxes: &[(u16, u16, u16, u16)], inner: usize, outer: usize) -> bool {
