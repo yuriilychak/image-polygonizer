@@ -1,8 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{
-    dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area2,
-};
+use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area2};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -709,7 +707,8 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             None => break,
         };
         let mut best_idx: i32 = -1;
-        let mut best_area = f32::INFINITY;
+        // Use integer area (twice the actual area) to avoid floating-point math.
+        let mut best_area: i32 = i32::MAX;
         let mut cur = start;
         loop {
             if state.alive[cur] {
@@ -721,7 +720,7 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
                 let cross = cross2(ax, ay, bx, by, cx, cy);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave {
-                    let area = cross.abs() as f32 * 0.5;
+                    let area = cross.abs();
                     if area < best_area && !state.would_create_self_intersection_after_removal(cur)
                     {
                         best_area = area;
@@ -890,7 +889,11 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         return simp;
     }
 
-    let orientation = polygon_signed_area2(&simp).signum();
+    let orientation = if polygon_signed_area2(&simp) > 0 {
+        1.0f32
+    } else {
+        -1.0f32
+    };
     let orig_indices = match map_simplified_to_original_indices(&orig, &simp) {
         Some(v) => v,
         None => return simp,
@@ -908,11 +911,9 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         let dx = bx - ax;
         let dy = by - ay;
         let len = (len_sq as f32).sqrt();
-        let (nx, ny) = if orientation >= 0 {
-            (dy / len, -dx / len)
-        } else {
-            (-dy / len, dx / len)
-        };
+        // Use orientation as a multiplier to avoid a conditional branch.
+        // When orientation is -1, this flips the normal direction.
+        let (nx, ny) = (orientation * (dy / len), orientation * (-dx / len));
         let c0 = -(nx * ax + ny * ay);
         let delta = compute_arc_max_offset(&orig, no, orig_indices[i], orig_indices[j], nx, ny, c0);
         lines.push((nx, ny, c0 - delta));
