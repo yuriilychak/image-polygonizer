@@ -2,7 +2,7 @@
 
 use crate::utils::{
     dist2i_poly, gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
-    polygon_signed_area, triangle_max_angle, triangle_min_angle,
+    polygon_signed_area2, triangle_max_angle, triangle_min_angle,
 };
 
 /// Triangulate a simple polygon (flat [x0,y0,...] u16 slice) using ear-clipping
@@ -31,7 +31,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
         return vec![0, 1, 2];
     }
 
-    let poly_sign = polygon_signed_area(pts).signum() as i8;
+    let poly_sign = polygon_signed_area2(pts).signum() as i8;
 
     // ── linked list ───────────────────────────────────────────────────────────
     let mut prev = (0..n)

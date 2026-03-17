@@ -39,15 +39,13 @@ pub(crate) fn dist2i_poly(pts: &[u16], a: usize, b: usize) -> i32 {
     dist2i(gx(pts, a), gy(pts, a), gx(pts, b), gy(pts, b))
 }
 
-pub(crate) fn polygon_signed_area(pts: &[u16]) -> f32 {
+pub(crate) fn polygon_signed_area2(pts: &[u16]) -> i32 {
     #[cfg(target_arch = "wasm32")]
     // SAFETY: simd128 is enabled globally via .cargo/config.toml for wasm32
-    let sum = unsafe { polygon_signed_area_simd(pts) };
+    unsafe { polygon_signed_area_simd(pts) }
 
     #[cfg(not(target_arch = "wasm32"))]
-    let sum = polygon_signed_area_scalar(pts);
-
-    sum as f32 * 0.5
+    polygon_signed_area_scalar(pts)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

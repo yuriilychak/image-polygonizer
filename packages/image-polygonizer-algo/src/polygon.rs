@@ -1,6 +1,8 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area};
+use crate::utils::{
+    dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area2,
+};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -169,8 +171,8 @@ impl LinkedState {
         gy(&self.pts, i)
     }
 
-    fn signed_area(&self) -> f32 {
-        polygon_signed_area(&self.materialize())
+    fn signed_area2(&self) -> i32 {
+        polygon_signed_area2(&self.materialize())
     }
 
     fn remove(&mut self, idx: usize) {
@@ -550,13 +552,13 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
         return normalized;
     }
     let mut state = LinkedState::new(normalized);
-    let signed = state.signed_area();
+    let signed = state.signed_area2();
     let total_area = signed.abs();
-    if total_area == 0.0 {
+    if total_area == 0 {
         return state.materialize();
     }
-    let threshold = total_area * percentage;
-    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
+    let threshold = total_area as f32 * percentage;
+    let orient_sign: i8 = if signed >= 0 { 1 } else { -1 };
     let mut changed = true;
     while changed && state.active > 3 {
         changed = false;
@@ -584,7 +586,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
             if !is_concave {
                 continue;
             }
-            let pit_area = cross.abs() as f32 * 0.5;
+            let pit_area = cross.abs() as f32;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             if pit_area > threshold && angle <= hole_angle_rad {
                 continue;
@@ -611,13 +613,13 @@ fn remove_obtuse_humps(
         return normalized;
     }
     let mut state = LinkedState::new(normalized);
-    let signed = state.signed_area();
+    let signed = state.signed_area2();
     let total_area = signed.abs();
-    if total_area == 0.0 {
+    if total_area == 0 {
         return state.materialize();
     }
-    let threshold = total_area * percentage;
-    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
+    let threshold = total_area as f32 * percentage;
+    let orient_sign: i8 = if signed >= 0 { 1 } else { -1 };
     let mut changed = true;
     while changed && state.active > 3 {
         changed = false;
@@ -645,7 +647,7 @@ fn remove_obtuse_humps(
             if !is_convex {
                 continue;
             }
-            let hump_area = cross.abs() as f32 * 0.5;
+            let hump_area = cross.abs() as f32;
             let angle = interior_angle_rad(ax, ay, bx, by, cx, cy, orient_sign);
             let remove_by_angle = angle > angle_threshold_rad;
             let remove_by_area = angle > pick_angle_rad && hump_area <= threshold;
@@ -699,8 +701,8 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
         return normalized;
     }
     let mut state = LinkedState::new(normalized);
-    let signed = state.signed_area();
-    let orient_sign: i8 = if signed >= 0.0 { 1 } else { -1 };
+    let signed = state.signed_area2();
+    let orient_sign: i8 = if signed >= 0 { 1 } else { -1 };
     while state.active > 3 && state.active > max_count {
         let start = match state.alive.iter().position(|&a| a) {
             Some(s) => s,
@@ -888,7 +890,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         return simp;
     }
 
-    let orientation = polygon_signed_area(&simp);
+    let orientation = polygon_signed_area2(&simp).signum();
     let orig_indices = match map_simplified_to_original_indices(&orig, &simp) {
         Some(v) => v,
         None => return simp,
@@ -906,7 +908,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         let dx = bx - ax;
         let dy = by - ay;
         let len = (len_sq as f32).sqrt();
-        let (nx, ny) = if orientation >= 0.0 {
+        let (nx, ny) = if orientation >= 0 {
             (dy / len, -dx / len)
         } else {
             (-dy / len, dx / len)
@@ -993,8 +995,8 @@ impl SlidingPoly {
         let n = self.count() as i32;
         ((i % n + n) % n) as usize
     }
-    fn signed_area(&self) -> f32 {
-        polygon_signed_area(&self.pts)
+    fn signed_area2(&self) -> i32 {
+        polygon_signed_area2(&self.pts)
     }
     fn to_u16(&self) -> Vec<u16> {
         self.pts.iter().map(|&v| v as u16).collect()
@@ -1167,7 +1169,7 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
     ];
     let mut any_improved = false;
     loop {
-        let cur_area = poly.signed_area().abs();
+        let cur_area = poly.signed_area2().abs();
         let mut best_area = cur_area;
         let mut best_step: Option<(i32, i32)> = None;
         let (old_ax, old_ay) = (poly.px(i1) as i32, poly.py(i1) as i32);
@@ -1189,7 +1191,7 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 poly.set(i2, old_bx, old_by);
                 continue;
             }
-            let area = poly.signed_area().abs();
+            let area = poly.signed_area2().abs();
             if area < best_area {
                 let xs = [
                     poly.px(i0) as i32,
@@ -1233,7 +1235,7 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             if next_ax == next_bx && next_ay == next_by {
                 break;
             }
-            let area_before = poly.signed_area().abs();
+            let area_before = poly.signed_area2().abs();
             poly.set(i1, next_ax, next_ay);
             poly.set(i2, next_bx, next_by);
             if has_degenerate_local(poly, i0, i1, i2, i3)
@@ -1268,7 +1270,7 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 poly.set(i2, cur_bx, cur_by);
                 break;
             }
-            let area_after = poly.signed_area().abs();
+            let area_after = poly.signed_area2().abs();
             if area_after >= area_before {
                 poly.set(i1, cur_ax, cur_ay);
                 poly.set(i2, cur_bx, cur_by);
@@ -1381,13 +1383,16 @@ fn pg_contours_intersect(a: &[u16], b: &[u16]) -> bool {
 }
 
 fn pg_is_inside(inner: &[u16], outer: &[u16]) -> bool {
-    if inner.len() < 6 || outer.len() < 6 {
-        return false;
-    }
-    if pg_contours_intersect(inner, outer) {
-        return false;
-    }
-    pg_point_in_poly_or_edge(outer, gx(inner, 0), gy(inner, 0))
+    inner.len() >= 6
+        && outer.len() >= 6
+        && !pg_contours_intersect(inner, outer)
+        && pg_point_in_poly_or_edge(outer, gx(inner, 0), gy(inner, 0))
+}
+
+fn bbox_contains(bboxes: &[(u16, u16, u16, u16)], inner: usize, outer: usize) -> bool {
+    let (bimx, bimy, bixx, bixy) = bboxes[inner];
+    let (bjmx, bjmy, bjxx, bjxy) = bboxes[outer];
+    bimx >= bjmx && bixx <= bjxx && bimy >= bjmy && bixy <= bjxy
 }
 
 pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
@@ -1395,33 +1400,33 @@ pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
     if n == 0 {
         return Vec::new();
     }
-    let normalized: Vec<Vec<u16>> = contours
-        .into_iter()
-        .map(|c| normalize_contour(&c))
-        .collect();
-    let bboxes: Vec<(u16, u16, u16, u16)> = normalized.iter().map(|c| pg_contour_bbox(c)).collect();
-    let areas: Vec<f32> = normalized
-        .iter()
-        .map(|c| polygon_signed_area(c).abs() as f32)
-        .collect();
+    let (normalized, bboxes, areas): (Vec<Vec<u16>>, Vec<(u16, u16, u16, u16)>, Vec<i32>) =
+        contours.into_iter().fold(
+            (
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+                Vec::with_capacity(n),
+            ),
+            |(mut norm, mut bbox, mut area), c| {
+                let norm_c = normalize_contour(&c);
+                bbox.push(pg_contour_bbox(&norm_c));
+                area.push(polygon_signed_area2(&norm_c).abs());
+                norm.push(norm_c);
+                (norm, bbox, area)
+            },
+        );
     let mut removed = vec![false; n];
     for i in 0..n {
         if removed[i] {
             continue;
         }
         for j in 0..n {
-            if i == j || removed[i] {
-                continue;
-            }
-            if areas[i] > areas[j] {
-                continue;
-            }
-            let (bimx, bimy, bixx, bixy) = bboxes[i];
-            let (bjmx, bjmy, bjxx, bjxy) = bboxes[j];
-            if bimx < bjmx || bixx > bjxx || bimy < bjmy || bixy > bjxy {
-                continue;
-            }
-            if pg_is_inside(&normalized[i], &normalized[j]) {
+            if i != j
+                && !removed[i]
+                && areas[i] <= areas[j]
+                && bbox_contains(&bboxes, i, j)
+                && pg_is_inside(&normalized[i], &normalized[j])
+            {
                 removed[i] = true;
                 break;
             }
