@@ -126,7 +126,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
 // ── ear clipping helpers ──────────────────────────────────────────────────────
 
 fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: i8) -> bool {
-    let cross = orient_poly(pts, a, b, c);
+    let cross = orient_poly(pts, pts, a, b, c);
     poly_sign >= 0 && cross > 0 || cross < 0
 }
 
@@ -167,7 +167,7 @@ fn is_ear(
 fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
     let min_a = triangle_min_angle(pts, a, b, c);
     let max_a = triangle_max_angle(pts, a, b, c);
-    let area2 = orient_poly(pts, a, b, c).abs() as f32;
+    let area2 = orient_poly(pts, pts, a, b, c).abs() as f32;
     min_a * 100000.0 - max_a * 10.0 + area2
 }
 
@@ -217,10 +217,10 @@ fn third_vertex(tris: &[usize], ia: usize, u: usize, v: usize) -> usize {
 
 /// Quad with all 4 consecutive turns matching `poly_sign` (strictly convex).
 fn is_convex_quad(pts: &[u16], poly_sign: i8, a: usize, b: usize, c: usize, d: usize) -> bool {
-    let o1 = orient_poly(pts, a, b, c);
-    let o2 = orient_poly(pts, b, c, d);
-    let o3 = orient_poly(pts, c, d, a);
-    let o4 = orient_poly(pts, d, a, b);
+    let o1 = orient_poly(pts, pts, a, b, c);
+    let o2 = orient_poly(pts, pts, b, c, d);
+    let o3 = orient_poly(pts, pts, c, d, a);
+    let o4 = orient_poly(pts, pts, d, a, b);
     poly_sign > 0 && o1 > 0 && o2 > 0 && o3 > 0 && o4 > 0 || o1 < 0 && o2 < 0 && o3 < 0 && o4 < 0
 }
 

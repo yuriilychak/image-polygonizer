@@ -1,6 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_raw, polygon_signed_area2};
+use crate::utils::{dist2i, dist2i_poly, gx, gy, orient_poly, polygon_signed_area2};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -70,14 +70,10 @@ fn normalize_contour(pts: &[u16]) -> Vec<u16> {
 }
 
 #[inline]
-fn cross2(pts: &[u16], a: usize, b: usize, c: usize, pts2: Option<&[u16]>) -> i32 {
-    let (ax, ay) = (gx(pts, a), gy(pts, a));
-    let (bx, by) = (gx(pts, b), gy(pts, b));
-    let (cx, cy) = if let Some(pts2) = pts2 {
-        (gx(pts2, c), gy(pts2, c))
-    } else {
-        (gx(pts, c), gy(pts, c))
-    };
+fn cross2(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
+    let (ax, ay) = (gx(pts1, a), gy(pts1, a));
+    let (bx, by) = (gx(pts1, b), gy(pts1, b));
+    let (cx, cy) = (gx(pts2, c), gy(pts2, c));
 
     let (bax, cby) = (bx as i16 - ax as i16, cy as i16 - by as i16);
     let (bay, cbx) = (by as i16 - ay as i16, cx as i16 - bx as i16);
@@ -105,22 +101,13 @@ fn segments_intersect(a: &[u16], a0: usize, a1: usize, b: &[u16], b0: usize, b1:
             && px <= ax.max(bx)
             && py >= ay.min(by)
             && py <= ay.max(by)
-            && orient_raw(ax, ay, bx, by, px, py) == 0
+            && orient_poly(a, b, a0, a1, p) == 0
     }
 
-    let a0x = gx(a, a0);
-    let a0y = gy(a, a0);
-    let a1x = gx(a, a1);
-    let a1y = gy(a, a1);
-    let b0x = gx(b, b0);
-    let b0y = gy(b, b0);
-    let b1x = gx(b, b1);
-    let b1y = gy(b, b1);
-
-    let o1 = orient_raw(a0x, a0y, a1x, a1y, b0x, b0y).signum();
-    let o2 = orient_raw(a0x, a0y, a1x, a1y, b1x, b1y).signum();
-    let o3 = orient_raw(b0x, b0y, b1x, b1y, a0x, a0y).signum();
-    let o4 = orient_raw(b0x, b0y, b1x, b1y, a1x, a1y).signum();
+    let o1 = orient_poly(a, b, a0, a1, b0).signum();
+    let o2 = orient_poly(a, b, a0, a1, b1).signum();
+    let o3 = orient_poly(b, a, b0, b1, a0).signum();
+    let o4 = orient_poly(b, a, b0, b1, a1).signum();
 
     (o1 != o2 && o3 != o4)
         || (o1 == 0 && on_seg(a, a0, a1, b, b0))
@@ -300,7 +287,7 @@ fn rdp_point_line_dist_sq(pts: &[u16], p: usize, a: usize, b: usize) -> f32 {
     if len_sq == 0 {
         return dist2i_poly(pts, a, p) as f32;
     }
-    let cross = cross2(pts, a, b, p, None);
+    let cross = cross2(pts, pts, a, b, p);
     cross as f32 * cross as f32 / len_sq as f32
 }
 
@@ -539,7 +526,7 @@ fn remove_small_pits(pts: Vec<u16>, percentage: f32, hole_angle_rad: f32) -> Vec
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let cross = cross2(&state.pts, prev, curr, next, None);
+            let cross = cross2(&state.pts, &state.pts, prev, curr, next);
             let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
             if !is_concave
                 || cross.abs() as f32 > threshold
@@ -594,7 +581,7 @@ fn remove_obtuse_humps(
             }
             let prev = state.prev[curr];
             let next = state.next[curr];
-            let cross = cross2(&state.pts, prev, curr, next, None);
+            let cross = cross2(&state.pts, &state.pts, prev, curr, next);
             let is_convex = orient_sign > 0 && cross > 0 || cross < 0;
             if !is_convex {
                 continue;
@@ -667,7 +654,7 @@ fn remove_smallest_pits_until_max_count(contour: &[u16], max_count: usize) -> Ve
             if state.alive[cur] {
                 let prev = state.prev[cur];
                 let next = state.next[cur];
-                let cross = cross2(&state.pts, prev, cur, next, None);
+                let cross = cross2(&state.pts, &state.pts, prev, cur, next);
                 let is_concave = orient_sign > 0 && cross < 0 || cross > 0;
                 if is_concave
                     && cross.abs() < best_area
@@ -898,10 +885,10 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
     for i in 0..n {
         let prev = (i + n - 1) % n;
         let next = (i + 1) % n;
+        let cross = orient_poly(&norm, &norm, prev, i, next);
         let (ax, ay) = (gx(&norm, prev), gy(&norm, prev));
         let (bx, by) = (gx(&norm, i), gy(&norm, i));
         let (cx, cy) = (gx(&norm, next), gy(&norm, next));
-        let cross = orient_raw(ax, ay, bx, by, cx, cy);
         let between = bx >= ax.min(cx) && bx <= ax.max(cx) && by >= ay.min(cy) && by <= ay.max(cy);
         if cross != 0 || !between {
             keep.push(i);
@@ -979,7 +966,7 @@ fn point_on_seg_i32(poly: &[u16], a: usize, b: usize, witnesses: &[u16], p: usiz
     let by = gy(poly, b);
     let px = gx(witnesses, p);
     let py = gy(witnesses, p);
-    cross2(&poly, a, b, p, Some(witnesses)) == 0
+    cross2(&poly, witnesses, a, b, p) == 0
         && px >= ax.min(bx)
         && px <= ax.max(bx)
         && py >= ay.min(by)
@@ -1273,7 +1260,7 @@ fn pg_point_in_poly_or_edge(poly: &[u16], inner: &[u16]) -> bool {
     for i in 0..n {
         let (xi, yi) = (gx(poly, i), gy(poly, i));
         let (xj, yj) = (gx(poly, j), gy(poly, j));
-        if orient_raw(xj, yj, xi, yi, px, py) == 0
+        if orient_poly(poly, inner, j, i, 0) == 0
             && px >= xj.min(xi)
             && px <= xj.max(xi)
             && py >= yj.min(yi)

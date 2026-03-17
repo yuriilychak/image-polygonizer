@@ -16,14 +16,14 @@ pub(crate) fn orient_raw(ax: u16, ay: u16, bx: u16, by: u16, cx: u16, cy: u16) -
 }
 
 #[inline]
-pub(crate) fn orient_poly(pts: &[u16], a: usize, b: usize, c: usize) -> i32 {
+pub(crate) fn orient_poly(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
     orient_raw(
-        gx(pts, a),
-        gy(pts, a),
-        gx(pts, b),
-        gy(pts, b),
-        gx(pts, c),
-        gy(pts, c),
+        gx(pts1, a),
+        gy(pts1, a),
+        gx(pts1, b),
+        gy(pts1, b),
+        gx(pts2, c),
+        gy(pts2, c),
     )
 }
 
@@ -42,7 +42,9 @@ pub(crate) fn dist2i_poly(pts: &[u16], a: usize, b: usize) -> i32 {
 pub(crate) fn polygon_signed_area2(pts: &[u16]) -> i32 {
     #[cfg(target_arch = "wasm32")]
     // SAFETY: simd128 is enabled globally via .cargo/config.toml for wasm32
-    unsafe { polygon_signed_area_simd(pts) }
+    unsafe {
+        polygon_signed_area_simd(pts)
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     polygon_signed_area_scalar(pts)
@@ -174,7 +176,7 @@ pub(crate) fn orient_triangle_like_polygon(
     b: usize,
     c: usize,
 ) -> (usize, usize, usize) {
-    let tri_sign = orient_poly(pts, a, b, c);
+    let tri_sign = orient_poly(pts, pts, a, b, c);
     if (poly_sign > 0 && tri_sign > 0) || (poly_sign < 0 && tri_sign < 0) {
         (a, b, c)
     } else {
