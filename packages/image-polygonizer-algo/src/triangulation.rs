@@ -1,7 +1,7 @@
 // ── triangulation ─────────────────────────────────────────────────────────────
 
 use crate::utils::{
-    dist2i, gx, gy, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
+    dist2i, gpair, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
     polygon_signed_area2, triangle_max_angle, triangle_min_angle,
 };
 
@@ -144,16 +144,16 @@ fn is_ear(
     if !is_convex(pts, a, b, c, poly_sign) {
         return false;
     }
-    let (ax, ay) = (gx(pts, a), gy(pts, a));
-    let (bx, by) = (gx(pts, b), gy(pts, b));
-    let (cx, cy) = (gx(pts, c), gy(pts, c));
+    let (ax, ay): (u16, u16) = gpair(pts, a);
+    let (bx, by): (u16, u16) = gpair(pts, b);
+    let (cx, cy): (u16, u16) = gpair(pts, c);
     let (min_x, max_x) = (ax.min(bx).min(cx), ax.max(bx).max(cx));
     let (min_y, max_y) = (ay.min(by).min(cy), ay.max(by).max(cy));
     for (p, &al) in alive.iter().enumerate() {
         if !al || p == a || p == b || p == c {
             continue;
         }
-        let (px, py) = (gx(pts, p), gy(pts, p));
+        let (px, py): (u16, u16) = gpair(pts, p);
         if px < min_x || px > max_x || py < min_y || py > max_y {
             continue;
         }

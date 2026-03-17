@@ -1,19 +1,46 @@
 // ── shared geometry helpers ───────────────────────────────────────────────────
 
-#[inline]
-pub(crate) fn gx(pts: &[u16], i: usize) -> u16 {
-    pts[i * 2]
+/// Trait used by `gpair` to convert a coordinate from `u16` to a numeric type.
+///
+/// This is intentionally implemented using `as` casts so that it mirrors the
+/// behavior of previous `gx(..) as T` / `gy(..) as T` patterns used elsewhere.
+pub(crate) trait FromU16 {
+    fn from_u16(x: u16) -> Self;
 }
+
+macro_rules! impl_from_u16 {
+    ($($t:ty),*) => {
+        $(
+            impl FromU16 for $t {
+                #[inline]
+                fn from_u16(x: u16) -> Self {
+                    x as $t
+                }
+            }
+        )*
+    };
+}
+
+// Add any additional numeric types if needed.
+impl_from_u16!(u8, u16, u32, usize, i8, i16, i32, isize, f32);
+
+/// Returns the (x, y) pair at a given vertex index, casting to a numeric type.
+///
+/// This is a generic helper meant to replace the old `gx(..)`/`gy(..)` helpers.
 #[inline]
-pub(crate) fn gy(pts: &[u16], i: usize) -> u16 {
-    pts[i * 2 + 1]
+pub(crate) fn gpair<T>(pts: &[u16], i: usize) -> (T, T)
+where
+    T: FromU16,
+{
+    let base = i * 2;
+    (T::from_u16(pts[base]), T::from_u16(pts[base + 1]))
 }
 
 #[inline]
 pub(crate) fn orient_poly(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
-    let (ax, ay) = (gx(pts1, a) as i16, gy(pts1, a) as i16);
-    let (bx, by) = (gx(pts1, b) as i16, gy(pts1, b) as i16);
-    let (cx, cy) = (gx(pts2, c) as i16, gy(pts2, c) as i16);
+    let (ax, ay): (i16, i16) = gpair(pts1, a);
+    let (bx, by): (i16, i16) = gpair(pts1, b);
+    let (cx, cy): (i16, i16) = gpair(pts2, c);
 
     let (dx_ab, dy_ab) = (bx - ax, by - ay);
     let (dx_ac, dy_ac) = (cx - ax, cy - ay);
@@ -22,8 +49,10 @@ pub(crate) fn orient_poly(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usi
 
 #[inline]
 pub(crate) fn dist2i(pts: &[u16], a: usize, b: usize) -> i32 {
-    let dx = gx(pts, b) as i16 - gx(pts, a) as i16;
-    let dy = gy(pts, b) as i16 - gy(pts, a) as i16;
+    let (ax, ay): (i16, i16) = gpair(pts, a);
+    let (bx, by): (i16, i16) = gpair(pts, b);
+    let dx = bx - ax;
+    let dy = by - ay;
     dx as i32 * dx as i32 + dy as i32 * dy as i32
 }
 
@@ -44,7 +73,9 @@ fn polygon_signed_area_scalar(pts: &[u16]) -> i32 {
     let mut sum = 0i32;
     for i in 0..n {
         let j = (i + 1) % n;
-        sum += gx(pts, i) as i32 * gy(pts, j) as i32 - gx(pts, j) as i32 * gy(pts, i) as i32;
+        let (xi, yi): (i32, i32) = gpair(pts, i);
+        let (xj, yj): (i32, i32) = gpair(pts, j);
+        sum += xi * yj - xj * yi;
     }
     sum
 }
@@ -108,9 +139,9 @@ unsafe fn polygon_signed_area_simd(pts: &[u16]) -> i32 {
 }
 
 pub(crate) fn triangle_angle(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
-    let (ax, ay) = (gx(pts, a) as f32, gy(pts, a) as f32);
-    let (bx, by) = (gx(pts, b) as f32, gy(pts, b) as f32);
-    let (cx, cy) = (gx(pts, c) as f32, gy(pts, c) as f32);
+    let (ax, ay): (f32, f32) = gpair(pts, a);
+    let (bx, by): (f32, f32) = gpair(pts, b);
+    let (cx, cy): (f32, f32) = gpair(pts, c);
 
     let v1x = bx - ax;
     let v1y = by - ay;

@@ -1,6 +1,6 @@
 // ── polygon simplification and filtering ─────────────────────────────────────
 
-use crate::utils::{dist2i, gx, gy, orient_poly, polygon_signed_area2, triangle_angle};
+use crate::utils::{dist2i, gpair, orient_poly, polygon_signed_area2, triangle_angle};
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ pub(crate) fn contour_to_polygon(
 /// Normalize a closed contour: remove duplicate last==first vertex if present.
 fn normalize_contour(pts: &[u16]) -> Vec<u16> {
     let n = pts.len() / 2;
-    if n > 1 && gx(pts, 0) == gx(pts, n - 1) && gy(pts, 0) == gy(pts, n - 1) {
+    if n > 1 && gpair::<u16>(pts, 0) == gpair::<u16>(pts, n - 1) {
         pts[..(n - 1) * 2].to_vec()
     } else {
         pts.to_vec()
@@ -71,13 +71,12 @@ fn normalize_contour(pts: &[u16]) -> Vec<u16> {
 
 #[inline]
 fn cross2(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
-    let (ax, ay) = (gx(pts1, a), gy(pts1, a));
-    let (bx, by) = (gx(pts1, b), gy(pts1, b));
-    let (cx, cy) = (gx(pts2, c), gy(pts2, c));
-
-    let (bax, cby) = (bx as i16 - ax as i16, cy as i16 - by as i16);
-    let (bay, cbx) = (by as i16 - ay as i16, cx as i16 - bx as i16);
-    bax as i32 * cby as i32 - bay as i32 * cbx as i32
+    let (ax, ay): (i32, i32) = gpair(pts1, a);
+    let (bx, by): (i32, i32) = gpair(pts1, b);
+    let (cx, cy): (i32, i32) = gpair(pts2, c);
+    let (bax, cby) = (bx - ax, cy - by);
+    let (bay, cbx) = (by - ay, cx - bx);
+    bax * cby - bay * cbx
 }
 
 #[inline]
@@ -91,12 +90,9 @@ fn dist2(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
 fn segments_intersect(a: &[u16], a0: usize, a1: usize, b: &[u16], b0: usize, b1: usize) -> bool {
     #[inline]
     fn on_seg(a: &[u16], a0: usize, a1: usize, b: &[u16], p: usize) -> bool {
-        let ax = gx(a, a0);
-        let ay = gy(a, a0);
-        let bx = gx(a, a1);
-        let by = gy(a, a1);
-        let px = gx(b, p);
-        let py = gy(b, p);
+        let (ax, ay): (u16, u16) = gpair(a, a0);
+        let (bx, by): (u16, u16) = gpair(a, a1);
+        let (px, py): (u16, u16) = gpair(b, p);
         px >= ax.min(bx)
             && px <= ax.max(bx)
             && py >= ay.min(by)
@@ -188,8 +184,9 @@ impl LinkedState {
         };
         let mut cur = start;
         loop {
-            out.push(gx(&self.pts, cur));
-            out.push(gy(&self.pts, cur));
+            let (x, y): (u16, u16) = gpair(&self.pts, cur);
+            out.push(x);
+            out.push(y);
             cur = self.next[cur];
             if cur == start {
                 break;
@@ -240,10 +237,9 @@ fn rdp_simplify_no_self_intersections(contour: &[u16], epsilon: u8) -> Vec<u16> 
 
 fn rdp_find_anchor(pts: &[u16], n: usize) -> usize {
     let mut anchor = 0;
-    let (mut mx, mut my) = (gx(pts, 0), gy(pts, 0));
+    let (mut mx, mut my): (u16, u16) = gpair(pts, 0);
     for i in 1..n {
-        let x = gx(pts, i);
-        let y = gy(pts, i);
+        let (x, y): (u16, u16) = gpair(pts, i);
         if x < mx || (x == mx && y < my) {
             anchor = i;
             mx = x;
@@ -348,7 +344,7 @@ fn rdp_is_adjacent(a: usize, b: usize, n: usize) -> bool {
 }
 
 fn rdp_same_pt(pts: &[u16], a: usize, b: usize) -> bool {
-    gx(pts, a) == gx(pts, b) && gy(pts, a) == gy(pts, b)
+    gpair::<u16>(pts, a) == gpair::<u16>(pts, b)
 }
 
 fn rdp_find_self_intersection(pts: &[u16], kept: &[usize]) -> Option<(usize, usize)> {
@@ -453,8 +449,9 @@ fn rdp_cleanup_redundant(pts: &[u16], kept: &mut Vec<usize>, eps_sq: u16) {
 fn rdp_materialize(pts: &[u16], kept: &[usize]) -> Vec<u16> {
     let mut out = Vec::with_capacity(kept.len() * 2);
     for &k in kept {
-        out.push(gx(pts, k));
-        out.push(gy(pts, k));
+        let (x, y): (u16, u16) = gpair(pts, k);
+        out.push(x);
+        out.push(y);
     }
     out
 }
@@ -670,9 +667,9 @@ fn map_simplified_to_original_indices(original: &[u16], simplified: &[u16]) -> O
     let ns = simplified.len() / 2;
     let mut matches: Vec<Vec<usize>> = Vec::with_capacity(ns);
     for i in 0..ns {
-        let (sx, sy) = (gx(simplified, i), gy(simplified, i));
+        let (sx, sy): (u16, u16) = gpair(simplified, i);
         let list: Vec<usize> = (0..no)
-            .filter(|&j| gx(original, j) == sx && gy(original, j) == sy)
+            .filter(|&j| gpair::<u16>(original, j) == (sx, sy))
             .collect();
         if list.is_empty() {
             return None;
@@ -733,8 +730,7 @@ fn compute_arc_max_offset(
     let mut delta = 0.0f32;
     let mut k = start;
     for _ in 0..=no {
-        let px = gx(original, k) as f32;
-        let py = gy(original, k) as f32;
+        let (px, py): (f32, f32) = gpair(original, k);
         let val = nx * px + ny * py + c0;
         if val > delta {
             delta = val;
@@ -828,8 +824,8 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         if len_sq == 0 {
             return simp;
         }
-        let (ax, ay) = (gx(&simp, i) as f32, gy(&simp, i) as f32);
-        let (bx, by) = (gx(&simp, j) as f32, gy(&simp, j) as f32);
+        let (ax, ay): (f32, f32) = gpair(&simp, i);
+        let (bx, by): (f32, f32) = gpair(&simp, j);
         let dx = bx - ax;
         let dy = by - ay;
         let len = (len_sq as f32).sqrt();
@@ -849,7 +845,7 @@ fn extend_to_cover_original(original: &[u16], simplified: &[u16]) -> Vec<u16> {
         let (x, y) = match intersect_lines(la.0, la.1, la.2, lb.0, lb.1, lb.2) {
             Some((ix, iy)) => snap_conservative(ix, iy, la, lb),
             None => {
-                let (sx, sy) = (gx(&simp, i) as f32, gy(&simp, i) as f32);
+                let (sx, sy): (f32, f32) = gpair(&simp, i);
                 snap_conservative(sx, sy, la, lb)
             }
         };
@@ -872,9 +868,9 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
         let prev = (i + n - 1) % n;
         let next = (i + 1) % n;
         let cross = orient_poly(&norm, &norm, prev, i, next);
-        let (ax, ay) = (gx(&norm, prev), gy(&norm, prev));
-        let (bx, by) = (gx(&norm, i), gy(&norm, i));
-        let (cx, cy) = (gx(&norm, next), gy(&norm, next));
+        let (ax, ay): (u16, u16) = gpair(&norm, prev);
+        let (bx, by): (u16, u16) = gpair(&norm, i);
+        let (cx, cy): (u16, u16) = gpair(&norm, next);
         let between = bx >= ax.min(cx) && bx <= ax.max(cx) && by >= ay.min(cy) && by <= ay.max(cy);
         if cross != 0 || !between {
             keep.push(i);
@@ -885,8 +881,9 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
     }
     let mut out = Vec::with_capacity(keep.len() * 2);
     for &k in &keep {
-        out.push(gx(&norm, k));
-        out.push(gy(&norm, k));
+        let (x, y): (u16, u16) = gpair(&norm, k);
+        out.push(x);
+        out.push(y);
     }
     out
 }
@@ -936,8 +933,10 @@ fn gcd_i(a: i32, b: i32) -> i32 {
 }
 
 fn primitive_dir(pts: &[u16], a: usize, b: usize) -> (i32, i32) {
-    let dx = gx(pts, a) as i32 - gx(pts, b) as i32;
-    let dy = gy(pts, a) as i32 - gy(pts, b) as i32;
+    let (ax, ay): (i32, i32) = gpair(pts, a);
+    let (bx, by): (i32, i32) = gpair(pts, b);
+    let dx = ax - bx;
+    let dy = ay - by;
     if dx == 0 && dy == 0 {
         return (0, 0);
     }
@@ -946,12 +945,9 @@ fn primitive_dir(pts: &[u16], a: usize, b: usize) -> (i32, i32) {
 }
 
 fn point_on_seg_i32(poly: &[u16], a: usize, b: usize, witnesses: &[u16], p: usize) -> bool {
-    let ax = gx(poly, a);
-    let ay = gy(poly, a);
-    let bx = gx(poly, b);
-    let by = gy(poly, b);
-    let px = gx(witnesses, p);
-    let py = gy(witnesses, p);
+    let (ax, ay): (u16, u16) = gpair(poly, a);
+    let (bx, by): (u16, u16) = gpair(poly, b);
+    let (px, py): (u16, u16) = gpair(witnesses, p);
     cross2(&poly, witnesses, a, b, p) == 0
         && px >= ax.min(bx)
         && px <= ax.max(bx)
@@ -960,8 +956,7 @@ fn point_on_seg_i32(poly: &[u16], a: usize, b: usize, witnesses: &[u16], p: usiz
 }
 
 fn point_in_poly_or_on_edge(poly: &SlidingPoly, witnesses: &[u16], witness_idx: usize) -> bool {
-    let px = gx(witnesses, witness_idx) as i32;
-    let py = gy(witnesses, witness_idx) as i32;
+    let (px, py): (i32, i32) = gpair(witnesses, witness_idx);
 
     let n = poly.count();
     let mut inside = false;
@@ -970,12 +965,10 @@ fn point_in_poly_or_on_edge(poly: &SlidingPoly, witnesses: &[u16], witness_idx: 
         if point_on_seg_i32(&poly.pts, j, i, witnesses, witness_idx) {
             return true;
         }
-        let (xi, yi) = (gx(&poly.pts, i), gy(&poly.pts, i));
-        let (xj, yj) = (gx(&poly.pts, j), gy(&poly.pts, j));
-        if (yi as i32 > py) != (yj as i32 > py) {
-            let t = (xj as i32 - xi as i32) as f32 * (py - yi as i32) as f32
-                / (yj as i32 - yi as i32) as f32
-                + xi as f32;
+        let (xi, yi): (i32, i32) = gpair(&poly.pts, i);
+        let (xj, yj): (i32, i32) = gpair(&poly.pts, j);
+        if (yi > py) != (yj > py) {
+            let t = (xj - xi) as f32 * (py - yi) as f32 / (yj - yi) as f32 + xi as f32;
             if (px as f32) <= t {
                 inside = !inside;
             }
@@ -1020,9 +1013,9 @@ fn would_self_intersect_after_slide(poly: &SlidingPoly, i1: usize, i2: usize) ->
 }
 
 fn has_degenerate_local(poly: &SlidingPoly, i0: usize, i1: usize, i2: usize, i3: usize) -> bool {
-    (gx(&poly.pts, i0) == gx(&poly.pts, i1) && gy(&poly.pts, i0) == gy(&poly.pts, i1))
-        || (gx(&poly.pts, i1) == gx(&poly.pts, i2) && gy(&poly.pts, i1) == gy(&poly.pts, i2))
-        || (gx(&poly.pts, i2) == gx(&poly.pts, i3) && gy(&poly.pts, i2) == gy(&poly.pts, i3))
+    gpair::<u16>(&poly.pts, i0) == gpair::<u16>(&poly.pts, i1)
+        || gpair::<u16>(&poly.pts, i1) == gpair::<u16>(&poly.pts, i2)
+        || gpair::<u16>(&poly.pts, i2) == gpair::<u16>(&poly.pts, i3)
 }
 
 fn all_witnesses_inside(
@@ -1035,8 +1028,7 @@ fn all_witnesses_inside(
 ) -> bool {
     let nw = witnesses.len() / 2;
     for i in 0..nw {
-        let wx = gx(witnesses, i) as i32;
-        let wy = gy(witnesses, i) as i32;
+        let (wx, wy): (i32, i32) = gpair(witnesses, i);
         if wx >= min_x
             && wx <= max_x
             && wy >= min_y
@@ -1078,8 +1070,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         let cur_area = poly.signed_area2().abs();
         let mut best_area = cur_area;
         let mut best_step: Option<(i32, i32)> = None;
-        let (old_ax, old_ay) = (gx(&poly.pts, i1) as i32, gy(&poly.pts, i1) as i32);
-        let (old_bx, old_by) = (gx(&poly.pts, i2) as i32, gy(&poly.pts, i2) as i32);
+        let (old_ax, old_ay): (i32, i32) = gpair(&poly.pts, i1);
+        let (old_bx, old_by): (i32, i32) = gpair(&poly.pts, i2);
         for &(sa, sb) in &steps {
             let ax = old_ax + dir_a.0 * sa;
             let ay = old_ay + dir_a.1 * sa;
@@ -1099,22 +1091,10 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             }
             let area = poly.signed_area2().abs();
             if area < best_area {
-                let xs = [
-                    gx(&poly.pts, i0) as i32,
-                    ax,
-                    bx,
-                    gx(&poly.pts, i3) as i32,
-                    old_ax,
-                    old_bx,
-                ];
-                let ys = [
-                    gy(&poly.pts, i0) as i32,
-                    ay,
-                    by,
-                    gy(&poly.pts, i3) as i32,
-                    old_ay,
-                    old_by,
-                ];
+                let (i0x, i0y): (i32, i32) = gpair(&poly.pts, i0);
+                let (i3x, i3y): (i32, i32) = gpair(&poly.pts, i3);
+                let xs = [i0x, ax, bx, i3x, old_ax, old_bx];
+                let ys = [i0y, ay, by, i3y, old_ay, old_by];
                 let min_x = xs.iter().copied().min().unwrap() - 2;
                 let max_x = xs.iter().copied().max().unwrap() + 2;
                 let min_y = ys.iter().copied().min().unwrap() - 2;
@@ -1132,8 +1112,8 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
         };
         let mut moved = false;
         loop {
-            let (cur_ax, cur_ay) = (gx(&poly.pts, i1) as i32, gy(&poly.pts, i1) as i32);
-            let (cur_bx, cur_by) = (gx(&poly.pts, i2) as i32, gy(&poly.pts, i2) as i32);
+            let (cur_ax, cur_ay): (i32, i32) = gpair(&poly.pts, i1);
+            let (cur_bx, cur_by): (i32, i32) = gpair(&poly.pts, i2);
             let next_ax = cur_ax + dir_a.0 * sa;
             let next_ay = cur_ay + dir_a.1 * sa;
             let next_bx = cur_bx + dir_b.0 * sb;
@@ -1151,22 +1131,10 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 poly.set(i2, cur_bx, cur_by);
                 break;
             }
-            let xs = [
-                gx(&poly.pts, i0) as i32,
-                next_ax,
-                next_bx,
-                gx(&poly.pts, i3) as i32,
-                cur_ax,
-                cur_bx,
-            ];
-            let ys = [
-                gy(&poly.pts, i0) as i32,
-                next_ay,
-                next_by,
-                gy(&poly.pts, i3) as i32,
-                cur_ay,
-                cur_by,
-            ];
+            let (i0x, i0y): (i32, i32) = gpair(&poly.pts, i0);
+            let (i3x, i3y): (i32, i32) = gpair(&poly.pts, i3);
+            let xs = [i0x, next_ax, next_bx, i3x, cur_ax, cur_bx];
+            let ys = [i0y, next_ay, next_by, i3y, cur_ay, cur_by];
             let min_x = xs.iter().copied().min().unwrap() - 2;
             let max_x = xs.iter().copied().max().unwrap() + 2;
             let min_y = ys.iter().copied().min().unwrap() - 2;
@@ -1215,11 +1183,10 @@ fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
     if n == 0 {
         return (0, 0, 0, 0);
     }
-    let (mut min_x, mut max_x) = (gx(pts, 0), gx(pts, 0));
-    let (mut min_y, mut max_y) = (gy(pts, 0), gy(pts, 0));
+    let (mut min_x, mut min_y): (u16, u16) = gpair(pts, 0);
+    let (mut max_x, mut max_y) = (min_x, min_y);
     for i in 1..n {
-        let x = gx(pts, i);
-        let y = gy(pts, i);
+        let (x, y): (u16, u16) = gpair(pts, i);
         if x < min_x {
             min_x = x;
         }
@@ -1237,15 +1204,14 @@ fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
 }
 
 fn pg_point_in_poly_or_edge(poly: &[u16], inner: &[u16]) -> bool {
-    let px = gx(inner, 0);
-    let py = gy(inner, 0);
+    let (px, py): (u16, u16) = gpair(inner, 0);
 
     let n = poly.len() / 2;
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi) = (gx(poly, i), gy(poly, i));
-        let (xj, yj) = (gx(poly, j), gy(poly, j));
+        let (xi, yi): (u16, u16) = gpair(poly, i);
+        let (xj, yj): (u16, u16) = gpair(poly, j);
         if orient_poly(poly, inner, j, i, 0) == 0
             && px >= xj.min(xi)
             && px <= xj.max(xi)
