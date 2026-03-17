@@ -467,19 +467,10 @@ fn interior_angle_rad(pts: &[u16], a: usize, b: usize, c: usize, orientation_sig
     if small_angle == 0.0 {
         return 0.0;
     }
-    let ax = gx(pts, a);
-    let ay = gy(pts, a);
-    let bx = gx(pts, b);
-    let by = gy(pts, b);
-    let cx = gx(pts, c);
-    let cy = gy(pts, c);
-    let v1x = (ax as i16 - bx as i16) as f32;
-    let v1y = (ay as i16 - by as i16) as f32;
-    let v2x = (cx as i16 - bx as i16) as f32;
-    let v2y = (cy as i16 - by as i16) as f32;
+
     // cross = v1 × v2 = -cross2(ax,ay,bx,by,cx,cy), so comparisons are flipped
-    let cross = v1x * v2y - v1y * v2x;
-    let is_convex = orientation_sign > 0 && cross < 0.0 || cross > 0.0;
+    let cross = cross2(pts, pts, a, b, c);
+    let is_convex = orientation_sign > 0 && cross > 0 || cross < 0;
 
     if is_convex {
         small_angle
