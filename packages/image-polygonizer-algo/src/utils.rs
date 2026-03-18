@@ -38,22 +38,76 @@ where
 
 #[inline]
 pub(crate) fn orient_poly(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
-    let (ax, ay): (i16, i16) = gpair(pts1, a);
-    let (bx, by): (i16, i16) = gpair(pts1, b);
-    let (cx, cy): (i16, i16) = gpair(pts2, c);
+    let (ax, ay): (i32, i32) = gpair(pts1, a);
+    let (bx, by): (i32, i32) = gpair(pts1, b);
+    let (cx, cy): (i32, i32) = gpair(pts2, c);
 
     let (dx_ab, dy_ab) = (bx - ax, by - ay);
     let (dx_ac, dy_ac) = (cx - ax, cy - ay);
-    dx_ab as i32 * dy_ac as i32 - dy_ab as i32 * dx_ac as i32
+    dx_ab * dy_ac - dy_ab * dx_ac
 }
 
 #[inline]
 pub(crate) fn dist2i(pts: &[u16], a: usize, b: usize) -> i32 {
-    let (ax, ay): (i16, i16) = gpair(pts, a);
-    let (bx, by): (i16, i16) = gpair(pts, b);
+    let (ax, ay): (i32, i32) = gpair(pts, a);
+    let (bx, by): (i32, i32) = gpair(pts, b);
     let dx = bx - ax;
     let dy = by - ay;
-    dx as i32 * dx as i32 + dy as i32 * dy as i32
+    dx * dx + dy * dy
+}
+
+/// Normalize a closed contour: remove duplicate last==first vertex if present.
+///
+/// This is used by both polygon simplification and sliding-edge refinement.
+pub(crate) fn normalize_contour(pts: &[u16]) -> Vec<u16> {
+    let n = pts.len() / 2;
+    if n > 1 && gpair::<u16>(pts, 0) == gpair::<u16>(pts, n - 1) {
+        pts[..(n - 1) * 2].to_vec()
+    } else {
+        pts.to_vec()
+    }
+}
+
+#[inline]
+pub(crate) fn cross2(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
+    let (ax, ay): (i32, i32) = gpair(pts1, a);
+    let (bx, by): (i32, i32) = gpair(pts1, b);
+    let (cx, cy): (i32, i32) = gpair(pts2, c);
+    let (bax, cby) = (bx - ax, cy - by);
+    let (bay, cbx) = (by - ay, cx - bx);
+    bax * cby - bay * cbx
+}
+
+pub(crate) fn segments_intersect(
+    a: &[u16],
+    a0: usize,
+    a1: usize,
+    b: &[u16],
+    b0: usize,
+    b1: usize,
+) -> bool {
+    #[inline]
+    fn on_seg(a: &[u16], a0: usize, a1: usize, b: &[u16], p: usize) -> bool {
+        let (ax, ay): (u16, u16) = gpair(a, a0);
+        let (bx, by): (u16, u16) = gpair(a, a1);
+        let (px, py): (u16, u16) = gpair(b, p);
+        px >= ax.min(bx)
+            && px <= ax.max(bx)
+            && py >= ay.min(by)
+            && py <= ay.max(by)
+            && orient_poly(a, b, a0, a1, p) == 0
+    }
+
+    let o1 = orient_poly(a, b, a0, a1, b0).signum();
+    let o2 = orient_poly(a, b, a0, a1, b1).signum();
+    let o3 = orient_poly(b, a, b0, b1, a0).signum();
+    let o4 = orient_poly(b, a, b0, b1, a1).signum();
+
+    (o1 != o2 && o3 != o4)
+        || (o1 == 0 && on_seg(a, a0, a1, b, b0))
+        || (o2 == 0 && on_seg(a, a0, a1, b, b1))
+        || (o3 == 0 && on_seg(b, b0, b1, a, a0))
+        || (o4 == 0 && on_seg(b, b0, b1, a, a1))
 }
 
 pub(crate) fn polygon_signed_area2(pts: &[u16]) -> i32 {

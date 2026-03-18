@@ -4,6 +4,7 @@ mod bitmask;
 mod marching_squares;
 mod polygon;
 mod serialization;
+mod sliding_edges;
 mod triangulation;
 mod utils;
 
