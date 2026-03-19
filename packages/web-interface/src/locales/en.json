@@ -21,5 +21,9 @@
     "image_config_input_help_maxPointCount": "Maximum point count allowed in result polygon",
     "image_config_input_help_alphaThreshold": "Alpha threshold that will mark all alpha values below as empty area",
     "image_config_input_help_minimalDistance": "Max distance from non optimized polygon to reduce point count during simplification",
-    "button_label_language": "Language"
+    "button_label_language": "Language",
+    "export_modal_title": "Export project",
+    "export_modal_button_label_export": "Export",
+    "export_modal_button_label_cancel": "Cancel"
+
 }

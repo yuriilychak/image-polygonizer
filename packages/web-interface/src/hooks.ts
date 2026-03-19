@@ -14,6 +14,7 @@ export default function usePolygonizer() {
     const projectLoaderRef = useRef<HTMLInputElement>(null);
     const saveAnchorRef = useRef<HTMLAnchorElement>(null);
     const {
+        isExportModalOpen,
         isInit,
         images,
         projectName,
@@ -101,6 +102,8 @@ export default function usePolygonizer() {
 
     const onProjectNameChange = useCallback((newName: string) => dispatch(getReducerEvent('projectNameChange', newName)), []);
 
+    const onCloseExportModal = useCallback(() => dispatch(getReducerEvent('closeExportModal')), []);
+
     useEffect(() => {
         if (!isInit || currentAction === 'none') {
             return;
@@ -119,6 +122,7 @@ export default function usePolygonizer() {
                 }
                 break;
             case 'export':
+                dispatch(getReducerEvent('openExportModal'));
                 break;
             case 'save':
                 imagePolygonizer
@@ -150,6 +154,7 @@ export default function usePolygonizer() {
 
     return {
         t,
+        isExportModalOpen,
         images,
         projectName,
         imageLoaderRef,
@@ -166,5 +171,6 @@ export default function usePolygonizer() {
         onImageUpload,
         onSwitchLanguage,
         onProjectNameChange,
+        onCloseExportModal,
     };
 }

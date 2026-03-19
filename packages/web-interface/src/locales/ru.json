@@ -21,5 +21,8 @@
     "image_config_input_help_maxPointCount": "Максимальное количество точек, разрешенное в результирующем полигоне",
     "image_config_input_help_alphaThreshold": "Порог альфа, который отметит все значения альфа ниже как пустую область",
     "image_config_input_help_minimalDistance": "Максимальное расстояние от неоптимизированного полигона для уменьшения количества точек во время упрощения",
-    "button_label_language": "Язык"
+    "button_label_language": "Язык",
+    "export_modal_title": "Экспорт проекта",
+    "export_modal_button_label_export": "Экспорт",
+    "export_modal_button_label_cancel": "Отмена"
 }

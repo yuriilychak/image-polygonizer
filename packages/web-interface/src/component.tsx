@@ -1,5 +1,6 @@
 import { ActionMenu } from './action-menu';
 import { WorkingArea } from './working-area';
+import { ExportModal } from './export-modal';
 import usePolygonizer from './hooks';
 
 import type { FC } from 'react';
@@ -9,6 +10,7 @@ import './component.css';
 const App: FC = () => {
     const {
         t,
+        isExportModalOpen,
         images,
         currentImage,
         currentLanguage,
@@ -25,6 +27,7 @@ const App: FC = () => {
         onProjectUpload,
         onSwitchLanguage,
         onProjectNameChange,
+        onCloseExportModal
     } = usePolygonizer();
 
     return (
@@ -49,6 +52,7 @@ const App: FC = () => {
                 saveAnchorRef={saveAnchorRef}
             />
             <WorkingArea src={currentImage?.src} polygonInfo={currentImage?.polygonInfo} />
+            <ExportModal t={t} isOpen={isExportModalOpen} onCancel={onCloseExportModal} />
         </div>
     );
 };

@@ -130,9 +130,12 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
         return { ...state, ...payload, currentImage, disabled: false, buttonActions };
     },
     projectNameChange: (state, projectName: string) => ({ ...state, projectName }),
+    openExportModal: state => ({ ...state, isExportModalOpen: true }),
+    closeExportModal: state => ({ ...state, isExportModalOpen: false, disabled: false, currentAction: 'none' }),
 };
 
 export const INITIAL_STATE: ReducerState = {
+    isExportModalOpen: false,
     projectName: 'New Project',
     languageIndex: 0,
     isInit: false,

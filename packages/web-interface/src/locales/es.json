@@ -21,5 +21,8 @@
     "image_config_input_help_maxPointCount": "Número máximo de puntos permitidos en el polígono resultante",
     "image_config_input_help_alphaThreshold": "Umbral alfa que marcará todos los valores alfa por debajo como área vacía",
     "image_config_input_help_minimalDistance": "Distancia máxima desde el polígono no optimizado para reducir el conteo de puntos durante la simplificación",
-    "button_label_language": "Idioma"
+    "button_label_language": "Idioma",
+    "export_modal_title": "Exportar proyecto",
+    "export_modal_button_label_export": "Exportar",
+    "export_modal_button_label_cancel": "Cancelar"
 }

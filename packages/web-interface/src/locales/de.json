@@ -21,5 +21,8 @@
     "image_config_input_help_maxPointCount": "Maximale Punktzahl im Ergebnispolygon erlaubt",
     "image_config_input_help_alphaThreshold": "Alpha-Schwellenwert, der alle Alpha-Werte darunter als leeren Bereich markiert",
     "image_config_input_help_minimalDistance": "Maximale Entfernung vom nicht optimierten Polygon zur Reduzierung der Punktzahl während der Vereinfachung",
-    "button_label_language": "Sprache"
+    "button_label_language": "Sprache",
+    "export_modal_title": "Projekt exportieren",
+    "export_modal_button_label_export": "Exportieren",
+    "export_modal_button_label_cancel": "Abbrechen"
 }

@@ -21,5 +21,8 @@
     "image_config_input_help_maxPointCount": "Maksymalna liczba punktów dozwolona w wynikowym wielokącie",
     "image_config_input_help_alphaThreshold": "Próg alfa, który oznaczy wszystkie wartości alfa poniżej jako pusty obszar",
     "image_config_input_help_minimalDistance": "Maksymalna odległość od nieoptymalnego wielokąta w celu zmniejszenia liczby punktów podczas upraszczania",
-    "button_label_language": "Język"
+    "button_label_language": "Język",
+    "export_modal_title": "Eksportuj projekt",
+    "export_modal_button_label_export": "Eksportuj",
+    "export_modal_button_label_cancel": "Anuluj"
 }

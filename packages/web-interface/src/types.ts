@@ -23,6 +23,8 @@ export type ReducerAction =
   | 'loadingFinish'
   | 'importProject'
   | 'projectNameChange'
+  | 'openExportModal'
+  | 'closeExportModal';
 
 export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
@@ -35,6 +37,7 @@ export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
 
 export type ReducerState = {
+  isExportModalOpen: boolean;
   projectName: string;
   languageIndex: number;
   isInit: boolean;

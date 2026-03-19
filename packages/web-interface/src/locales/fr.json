@@ -21,5 +21,8 @@
     "image_config_input_help_maxPointCount": "Nombre maximum de points autorisé dans le polygone résultat",
     "image_config_input_help_alphaThreshold": "Seuil alpha qui marquera toutes les valeurs alpha en dessous comme zone vide",
     "image_config_input_help_minimalDistance": "Distance maximale par rapport au polygone non optimisé pour réduire le nombre de points pendant la simplification",
-    "button_label_language": "Langue"
+    "button_label_language": "Langue",
+    "export_modal_title": "Exporter le projet",
+    "export_modal_button_label_export": "Exporter",
+    "export_modal_button_label_cancel": "Annuler"
 }
