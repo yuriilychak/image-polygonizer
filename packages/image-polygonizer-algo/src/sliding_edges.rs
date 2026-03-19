@@ -1,4 +1,6 @@
-use crate::utils::{gpair, orient_poly, polygon_signed_area2, cross2, normalize_contour, segments_intersect};
+use crate::utils::{
+    cross2, gpair, normalize_contour, orient, polygon_signed_area2, segments_intersect,
+};
 
 struct SlidingPoly {
     pts: Vec<u16>,
@@ -23,14 +25,6 @@ impl SlidingPoly {
     fn mod_idx(&self, i: i32) -> usize {
         let n = self.count() as i32;
         ((i % n + n) % n) as usize
-    }
-
-    fn signed_area2(&self) -> i32 {
-        polygon_signed_area2(&self.pts)
-    }
-
-    fn to_u16(&self) -> Vec<u16> {
-        self.pts.clone()
     }
 }
 
@@ -105,7 +99,7 @@ fn reduce_collinear(contour: &[u16]) -> Vec<u16> {
     for i in 0..n {
         let prev = (i + n - 1) % n;
         let next = (i + 1) % n;
-        let cross = orient_poly(&norm, &norm, prev, i, next);
+        let cross = orient(&norm, &norm, prev, i, next);
         let (ax, ay): (u16, u16) = gpair(&norm, prev);
         let (bx, by): (u16, u16) = gpair(&norm, i);
         let (cx, cy): (u16, u16) = gpair(&norm, next);
@@ -166,14 +160,27 @@ fn has_degenerate_local(poly: &SlidingPoly, i0: usize, i1: usize, i2: usize, i3:
         || gpair::<u16>(&poly.pts, i2) == gpair::<u16>(&poly.pts, i3)
 }
 
-fn all_witnesses_inside(
-    poly: &SlidingPoly,
-    witnesses: &[u16],
-    min_x: i32,
-    min_y: i32,
-    max_x: i32,
-    max_y: i32,
-) -> bool {
+fn all_witnesses_inside(poly: &SlidingPoly, witnesses: &[u16], xs: &[i32], ys: &[i32]) -> bool {
+    debug_assert_eq!(xs.len(), ys.len());
+
+    let mut min_x = i32::MAX;
+    let mut min_y = i32::MAX;
+    let mut max_x = i32::MIN;
+    let mut max_y = i32::MIN;
+
+    for (&x, &y) in xs.iter().zip(ys.iter()) {
+        min_x = min_x.min(x);
+        min_y = min_y.min(y);
+        max_x = max_x.max(x);
+        max_y = max_y.max(y);
+    }
+
+    // add the small safety margin used by the original algorithm
+    min_x -= 2;
+    min_y -= 2;
+    max_x += 2;
+    max_y += 2;
+
     let nw = witnesses.len() / 2;
     for i in 0..nw {
         let (wx, wy): (i32, i32) = gpair(witnesses, i);
@@ -222,7 +229,7 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
     loop {
         let (old_ax, old_ay): (i32, i32) = gpair(&poly.pts, i1);
         let (old_bx, old_by): (i32, i32) = gpair(&poly.pts, i2);
-        let cur_area = poly.signed_area2().abs();
+        let cur_area = polygon_signed_area2(&poly.pts).abs();
         let mut best_area = cur_area;
         let mut best_step: Option<(i32, i32)> = None;
         for &(sa, sb) in &STEP_COMBOS {
@@ -242,15 +249,11 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
                 poly.set(i2, old_bx, old_by);
                 continue;
             }
-            let area = poly.signed_area2().abs();
+            let area = polygon_signed_area2(&poly.pts).abs();
             if area < best_area {
                 let xs = [i0x, ax, bx, i3x, old_ax, old_bx];
                 let ys = [i0y, ay, by, i3y, old_ay, old_by];
-                let min_x = xs.iter().copied().min().unwrap() - 2;
-                let max_x = xs.iter().copied().max().unwrap() + 2;
-                let min_y = ys.iter().copied().min().unwrap() - 2;
-                let max_y = ys.iter().copied().max().unwrap() + 2;
-                if all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y) {
+                if all_witnesses_inside(poly, witnesses, &xs, &ys) {
                     best_area = area;
                     best_step = Some((sa, sb));
                 }
@@ -277,30 +280,20 @@ fn improve_sliding_edge(poly: &mut SlidingPoly, edge_start: usize, witnesses: &[
             }
             poly.set(i1, next_ax, next_ay);
             poly.set(i2, next_bx, next_by);
+            let area_after = polygon_signed_area2(&poly.pts).abs();
+            let xs = [i0x, next_ax, next_bx, i3x, cur_ax, cur_bx];
+            let ys = [i0y, next_ay, next_by, i3y, cur_ay, cur_by];
+
             if has_degenerate_local(poly, i0, i1, i2, i3)
                 || would_self_intersect_after_slide(poly, i1, i2)
+                || area_after >= area_before
+                || !all_witnesses_inside(poly, witnesses, &xs, &ys)
             {
                 poly.set(i1, cur_ax, cur_ay);
                 poly.set(i2, cur_bx, cur_by);
                 break;
             }
-            let area_after = poly.signed_area2().abs();
-            if area_after >= area_before {
-                poly.set(i1, cur_ax, cur_ay);
-                poly.set(i2, cur_bx, cur_by);
-                break;
-            }
-            let xs = [i0x, next_ax, next_bx, i3x, cur_ax, cur_bx];
-            let ys = [i0y, next_ay, next_by, i3y, cur_ay, cur_by];
-            let min_x = xs.iter().copied().min().unwrap() - 2;
-            let max_x = xs.iter().copied().max().unwrap() + 2;
-            let min_y = ys.iter().copied().min().unwrap() - 2;
-            let max_y = ys.iter().copied().max().unwrap() + 2;
-            if !all_witnesses_inside(poly, witnesses, min_x, min_y, max_x, max_y) {
-                poly.set(i1, cur_ax, cur_ay);
-                poly.set(i2, cur_bx, cur_by);
-                break;
-            }
+
             area_before = area_after;
             moved = true;
             any_improved = true;
@@ -329,5 +322,5 @@ pub(crate) fn refine_by_sliding_edges(original: &[u16], cover: &[u16]) -> Vec<u1
             }
         }
     }
-    poly.to_u16()
+    poly.pts.clone()
 }

@@ -37,7 +37,7 @@ where
 }
 
 #[inline]
-pub(crate) fn orient_poly(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
+pub(crate) fn orient(pts1: &[u16], pts2: &[u16], a: usize, b: usize, c: usize) -> i32 {
     let (ax, ay): (i32, i32) = gpair(pts1, a);
     let (bx, by): (i32, i32) = gpair(pts1, b);
     let (cx, cy): (i32, i32) = gpair(pts2, c);
@@ -95,13 +95,13 @@ pub(crate) fn segments_intersect(
             && px <= ax.max(bx)
             && py >= ay.min(by)
             && py <= ay.max(by)
-            && orient_poly(a, b, a0, a1, p) == 0
+            && orient(a, b, a0, a1, p) == 0
     }
 
-    let o1 = orient_poly(a, b, a0, a1, b0).signum();
-    let o2 = orient_poly(a, b, a0, a1, b1).signum();
-    let o3 = orient_poly(b, a, b0, b1, a0).signum();
-    let o4 = orient_poly(b, a, b0, b1, a1).signum();
+    let o1 = orient(a, b, a0, a1, b0).signum();
+    let o2 = orient(a, b, a0, a1, b1).signum();
+    let o3 = orient(b, a, b0, b1, a0).signum();
+    let o4 = orient(b, a, b0, b1, a1).signum();
 
     (o1 != o2 && o3 != o4)
         || (o1 == 0 && on_seg(a, a0, a1, b, b0))
@@ -231,9 +231,9 @@ pub(crate) fn point_in_triangle_or_on_edge(
     b: usize,
     c: usize,
 ) -> bool {
-    let o1 = orient_poly(pts, pts, a, b, p);
-    let o2 = orient_poly(pts, pts, b, c, p);
-    let o3 = orient_poly(pts, pts, c, a, p);
+    let o1 = orient(pts, pts, a, b, p);
+    let o2 = orient(pts, pts, b, c, p);
+    let o3 = orient(pts, pts, c, a, p);
     let has_neg = o1 < 0 || o2 < 0 || o3 < 0;
     let has_pos = o1 > 0 || o2 > 0 || o3 > 0;
     !(has_neg && has_pos)
@@ -246,7 +246,7 @@ pub(crate) fn orient_triangle_like_polygon(
     b: usize,
     c: usize,
 ) -> (usize, usize, usize) {
-    let tri_sign = orient_poly(pts, pts, a, b, c);
+    let tri_sign = orient(pts, pts, a, b, c);
     if (poly_sign > 0 && tri_sign > 0) || (poly_sign < 0 && tri_sign < 0) {
         (a, b, c)
     } else {

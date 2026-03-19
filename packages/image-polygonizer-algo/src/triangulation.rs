@@ -1,7 +1,7 @@
 // ── triangulation ─────────────────────────────────────────────────────────────
 
 use crate::utils::{
-    dist2i, gpair, orient_poly, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
+    dist2i, gpair, orient, orient_triangle_like_polygon, point_in_triangle_or_on_edge,
     polygon_signed_area2, triangle_max_angle, triangle_min_angle,
 };
 
@@ -126,7 +126,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
 // ── ear clipping helpers ──────────────────────────────────────────────────────
 
 fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: i8) -> bool {
-    let cross = orient_poly(pts, pts, a, b, c);
+    let cross = orient(pts, pts, a, b, c);
     poly_sign >= 0 && cross > 0 || cross < 0
 }
 
@@ -150,14 +150,17 @@ fn is_ear(
     let (min_x, max_x) = (ax.min(bx).min(cx), ax.max(bx).max(cx));
     let (min_y, max_y) = (ay.min(by).min(cy), ay.max(by).max(cy));
     for (p, &al) in alive.iter().enumerate() {
-        if !al || p == a || p == b || p == c {
-            continue;
-        }
         let (px, py): (u16, u16) = gpair(pts, p);
-        if px < min_x || px > max_x || py < min_y || py > max_y {
-            continue;
-        }
-        if point_in_triangle_or_on_edge(pts, p, a, b, c) {
+        if al
+            && p != a
+            && p != b
+            && p != c
+            && px >= min_x
+            && px <= max_x
+            && py >= min_y
+            && py <= max_y
+            && point_in_triangle_or_on_edge(pts, p, a, b, c)
+        {
             return false;
         }
     }
@@ -167,8 +170,20 @@ fn is_ear(
 fn ear_score(pts: &[u16], a: usize, b: usize, c: usize) -> f32 {
     let min_a = triangle_min_angle(pts, a, b, c);
     let max_a = triangle_max_angle(pts, a, b, c);
-    let area2 = orient_poly(pts, pts, a, b, c).abs() as f32;
+    let area2 = orient(pts, pts, a, b, c).abs() as f32;
     min_a * 100000.0 - max_a * 10.0 + area2
+}
+
+fn edge_witnesses(tris: &[usize], ia: usize, ib: usize, eu: usize, ev: usize) -> (usize, usize) {
+    if ib == usize::MAX {
+        return (usize::MAX, usize::MAX);
+    }
+    let w1 = third_vertex(tris, ia, eu, ev);
+    let w2 = third_vertex(tris, ib, eu, ev);
+    if w1 == usize::MAX || w2 == usize::MAX || w1 == w2 {
+        return (usize::MAX, usize::MAX);
+    }
+    (w1, w2)
 }
 
 // ── edge-flip helpers ─────────────────────────────────────────────────────────
@@ -217,10 +232,10 @@ fn third_vertex(tris: &[usize], ia: usize, u: usize, v: usize) -> usize {
 
 /// Quad with all 4 consecutive turns matching `poly_sign` (strictly convex).
 fn is_convex_quad(pts: &[u16], poly_sign: i8, a: usize, b: usize, c: usize, d: usize) -> bool {
-    let o1 = orient_poly(pts, pts, a, b, c);
-    let o2 = orient_poly(pts, pts, b, c, d);
-    let o3 = orient_poly(pts, pts, c, d, a);
-    let o4 = orient_poly(pts, pts, d, a, b);
+    let o1 = orient(pts, pts, a, b, c);
+    let o2 = orient(pts, pts, b, c, d);
+    let o3 = orient(pts, pts, c, d, a);
+    let o4 = orient(pts, pts, d, a, b);
     poly_sign > 0 && o1 > 0 && o2 > 0 && o3 > 0 && o4 > 0 || o1 < 0 && o2 < 0 && o3 < 0 && o4 < 0
 }
 
@@ -246,15 +261,8 @@ fn flip_edges_basic(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>) {
         guard += 1;
         let edges = build_edge_list(tris);
         'el: for &(eu, ev, ia, ib) in &edges {
-            if ib == usize::MAX {
-                continue;
-            }
-            let w1 = third_vertex(tris, ia, eu, ev);
-            let w2 = third_vertex(tris, ib, eu, ev);
-            if w1 == usize::MAX || w2 == usize::MAX || w1 == w2 {
-                continue;
-            }
-            if !is_convex_quad(pts, poly_sign, w1, eu, w2, ev) {
+            let (w1, w2) = edge_witnesses(tris, ia, ib, eu, ev);
+            if w1 == usize::MAX || !is_convex_quad(pts, poly_sign, w1, eu, w2, ev) {
                 continue;
             }
             let score_before =
@@ -291,12 +299,8 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>, max_pa
         pass += 1;
         let edges = build_edge_list(tris);
         'el: for &(eu, ev, ia, ib) in &edges {
-            if ib == usize::MAX {
-                continue;
-            }
-            let w1 = third_vertex(tris, ia, eu, ev);
-            let w2 = third_vertex(tris, ib, eu, ev);
-            if w1 == usize::MAX || w2 == usize::MAX || w1 == w2 {
+            let (w1, w2) = edge_witnesses(tris, ia, ib, eu, ev);
+            if w1 == usize::MAX {
                 continue;
             }
             let convex = [

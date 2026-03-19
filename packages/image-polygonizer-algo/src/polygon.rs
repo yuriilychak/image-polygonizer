@@ -2,8 +2,8 @@
 
 use crate::sliding_edges::refine_by_sliding_edges;
 use crate::utils::{
-    cross2, dist2i, gpair, normalize_contour, orient_poly, polygon_signed_area2,
-    segments_intersect, triangle_angle,
+    cross2, dist2i, gpair, normalize_contour, orient, polygon_signed_area2, segments_intersect,
+    triangle_angle,
 };
 
 // ── contour_to_polygon ────────────────────────────────────────────────────────
@@ -843,15 +843,15 @@ fn pg_contour_bbox(pts: &[u16]) -> (u16, u16, u16, u16) {
 }
 
 fn pg_point_in_poly_or_edge(poly: &[u16], inner: &[u16]) -> bool {
-    let (px, py): (u16, u16) = gpair(inner, 0);
+    let (px, py): (i32, i32) = gpair(inner, 0);
 
     let n = poly.len() / 2;
     let mut inside = false;
     let mut j = n - 1;
     for i in 0..n {
-        let (xi, yi): (u16, u16) = gpair(poly, i);
-        let (xj, yj): (u16, u16) = gpair(poly, j);
-        if orient_poly(poly, inner, j, i, 0) == 0
+        let (xi, yi): (i32, i32) = gpair(poly, i);
+        let (xj, yj): (i32, i32) = gpair(poly, j);
+        if orient(poly, inner, j, i, 0) == 0
             && px >= xj.min(xi)
             && px <= xj.max(xi)
             && py >= yj.min(yi)
@@ -862,10 +862,9 @@ fn pg_point_in_poly_or_edge(poly: &[u16], inner: &[u16]) -> bool {
         if (yi > py) != (yj > py) {
             // Integer winding test: px <= (xj - xi) * (py - yi) / (yj - yi) + xi
             // Multiply through by dy = (yj - yi), flip <= when dy < 0.
-            let dy = (yj as i16 - yi as i16) as i32;
-            let lhs = px as i32 * dy;
-            let rhs =
-                (xj as i16 - xi as i16) as i32 * (py as i16 - yi as i16) as i32 + xi as i32 * dy;
+            let dy = yj - yi;
+            let lhs = px * dy;
+            let rhs = (xj - xi) * (py - yi) + xi * dy;
             if (dy > 0 && lhs <= rhs) || (dy < 0 && lhs >= rhs) {
                 inside = !inside;
             }
