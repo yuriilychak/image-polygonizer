@@ -26,5 +26,12 @@
     "export_modal_button_label_exportPolygons": "Export polygons",
     "export_modal_button_label_exportTriangles": "Export triangles",
     "export_modal_button_label_submitExport": "Экспорт",
-    "export_modal_button_label_cancelExport": "Отмена"
+    "export_modal_button_label_cancelExport": "Отмена",
+    "export_modal_cropping_title": "Обрезка",
+    "export_modal_crop_none": "Нет",
+    "export_modal_crop_alpha": "Альфа",
+    "export_modal_crop_polygon": "Полигон",
+    "export_modal_crop_tooltip_none": "Выбрать Нет",
+    "export_modal_crop_tooltip_alpha": "Выбрать Альфа",
+    "export_modal_crop_tooltip_polygon": "Выбрать Полигон"
 }

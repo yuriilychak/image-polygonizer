@@ -26,5 +26,12 @@
     "export_modal_button_label_exportPolygons": "Export polygons",
     "export_modal_button_label_exportTriangles": "Export triangles",
     "export_modal_button_label_submitExport": "Експорт",
-    "export_modal_button_label_cancelExport": "Скасувати"
+    "export_modal_button_label_cancelExport": "Скасувати",
+    "export_modal_cropping_title": "Обрізка",
+    "export_modal_crop_none": "Ні",
+    "export_modal_crop_alpha": "Альфа",
+    "export_modal_crop_polygon": "Полігон",
+    "export_modal_crop_tooltip_none": "Вибрати Ні",
+    "export_modal_crop_tooltip_alpha": "Вибрати Альфа",
+    "export_modal_crop_tooltip_polygon": "Вибрати Полігон"
 }

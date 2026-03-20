@@ -55,6 +55,7 @@ const App: FC = () => {
             <WorkingArea src={currentImage?.src} polygonInfo={currentImage?.polygonInfo} />
             <ExportModal
                 t={t}
+                images={images}
                 isOpen={isExportModalOpen}
                 onAction={onExportAction}
                 exportConfig={exportConfig}

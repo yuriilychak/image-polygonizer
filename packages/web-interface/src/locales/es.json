@@ -26,5 +26,12 @@
     "export_modal_button_label_exportPolygons": "Export polygons",
     "export_modal_button_label_exportTriangles": "Export triangles",
     "export_modal_button_label_submitExport": "Exportar",
-    "export_modal_button_label_cancelExport": "Cancelar"
+    "export_modal_button_label_cancelExport": "Cancelar",
+    "export_modal_cropping_title": "Recorte",
+    "export_modal_crop_none": "Ninguno",
+    "export_modal_crop_alpha": "Alfa",
+    "export_modal_crop_polygon": "Polígono",
+    "export_modal_crop_tooltip_none": "Seleccionar Ninguno",
+    "export_modal_crop_tooltip_alpha": "Seleccionar Alfa",
+    "export_modal_crop_tooltip_polygon": "Seleccionar Polígono"
 }

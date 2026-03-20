@@ -19,8 +19,6 @@
     background-color: #151c22;
 }
 
-
-
 .export-modal-content {
     display: flex;
     flex-direction: column;
@@ -28,4 +26,189 @@
     padding: 8px 16px;
     box-sizing: border-box;
     flex: 1;
+    overflow-y: auto;
+}
+
+.export-modal-card-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+.export-modal-card {
+    display: flex;
+    flex-direction: column;
+    background: #1e2933;
+    border: none;
+    padding: 0;
+    box-sizing: border-box;
+    width: 200px;
+    height: 200px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.export-modal-card-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
+.export-modal-card-preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-height: 140px;
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.export-modal-card-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 6px 12px;
+    background-color: #6e6f73;
+}
+
+.export-modal-crop-options label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #e2e8f0;
+    font-size: 12px;
+}
+
+.export-modal-crop-title-overlay {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    background-color: rgba(15, 23, 42, 0.65);
+    color: #e2e8f0;
+    padding: 2px 6px;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.export-modal-image-title-overlay {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(15, 23, 42, 0.65);
+    color: #e2e8f0;
+    padding: 2px 6px;
+    font-size: 11px;
+    pointer-events: none;
+    max-width: calc(100% - 16px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.export-modal-no-preview {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.export-modal-card-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 6px;
+    margin: 0;
+    background-color: rgba(53, 57, 65, 0.65);
+    border-radius: 0;
+}
+
+.export-modal-crop-title-outside {
+    position: absolute;
+    bottom: 28px;
+    left: 4px;
+    color: #e2e8f0;
+    font-size: 12px;
+    background-color: rgba(15, 23, 42, 0.65);
+    padding: 2px 6px;
+    border-radius: 2px;
+    z-index: 10;
+}
+
+.export-modal-card-crop.overlay {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: rgba(15, 23, 42, 0.65);
+}
+.export-modal-crop-options {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-modal-card-crop input[type="radio"] {
+    margin: 0;
+    padding: 0;
+}
+.export-modal-crop-title {
+    font-size: 14px;
+    color: #e2e8f0;
+    font-weight: 700;
+    padding: 2px 6px;
+    align-self: flex-start;
+    background-color: rgba(15, 23, 42, 0.65);
+    border-radius: 2px;
+    margin: 4px 0 2px 4px;
+    box-sizing: border-box;
+    max-width: calc(100% - 16px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.export-modal-crop-options {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    align-items: center;
+}
+
+.export-modal-card-crop label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #e2e8f0;
+    font-size: 12px;
+}
+
+.export-modal-preview-wrapper {
+    display: inline-flex;
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+    background-color: #7e8188;
+    background-image:
+        linear-gradient(45deg, #6e6f73 25%, transparent 25%, transparent 75%, #6e6f73 75%, #6e6f73),
+        linear-gradient(45deg, #6e6f73 25%, transparent 25%, transparent 75%, #6e6f73 75%, #6e6f73);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+}
+
+.export-modal-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
