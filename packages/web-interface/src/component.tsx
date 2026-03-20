@@ -17,6 +17,7 @@ const App: FC = () => {
         disabled,
         buttonActions,
         imageLoaderRef,
+        exportConfig,
         projectName,
         projectLoaderRef,
         saveAnchorRef,
@@ -27,7 +28,7 @@ const App: FC = () => {
         onProjectUpload,
         onSwitchLanguage,
         onProjectNameChange,
-        onCloseExportModal
+        onExportAction,
     } = usePolygonizer();
 
     return (
@@ -52,7 +53,12 @@ const App: FC = () => {
                 saveAnchorRef={saveAnchorRef}
             />
             <WorkingArea src={currentImage?.src} polygonInfo={currentImage?.polygonInfo} />
-            <ExportModal t={t} isOpen={isExportModalOpen} onCancel={onCloseExportModal} />
+            <ExportModal
+                t={t}
+                isOpen={isExportModalOpen}
+                onAction={onExportAction}
+                exportConfig={exportConfig}
+            />
         </div>
     );
 };

@@ -24,7 +24,10 @@ export type ReducerAction =
   | 'importProject'
   | 'projectNameChange'
   | 'openExportModal'
-  | 'closeExportModal';
+  | 'closeExportModal'
+  | 'toggleSharedExportConfig';
+
+export type ExportAction = 'exportPolygons' | 'exportTriangles' | 'cancelExport' | 'submitExport';
 
 export type LanguageKey = 'en' | 'es' | 'fr' | 'de' | 'pl' | 'ru' | 'ua';
 
@@ -35,6 +38,16 @@ export type ButtonActionCallback = (action: ButtonAction) => void;
 export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
+
+export type SharedExportConfig = {
+  exportPolygons: boolean;
+  exportTriangles: boolean;
+};
+
+export type ExportConfig = {
+  shared: SharedExportConfig;
+  fileConfig: Record<string, object>;
+}
 
 export type ReducerState = {
   isExportModalOpen: boolean;
@@ -49,6 +62,7 @@ export type ReducerState = {
   disabled: boolean;
   buttonActions: ButtonAction[];
   hasCancelFileListener: boolean;
+  exportConfig: ExportConfig;
 };
 
 export type ReducerMiddleware = (state: ReducerState, payload?: any) => ReducerState;

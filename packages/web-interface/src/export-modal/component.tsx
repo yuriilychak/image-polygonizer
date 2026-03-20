@@ -1,34 +1,27 @@
+import { ModalHeader } from './modal-header';
+import { ModalFooter } from './modal-footer';
+
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
+import type { ExportAction, ExportConfig } from '../types';
 
 import './component.css';
 
 type ExportModalProps = {
     isOpen: boolean;
     t: TFunction;
-    onCancel(): void;
+    exportConfig: ExportConfig;
+    onAction(action: ExportAction): void;
 };
 
-const ExportModal: FC<ExportModalProps> = ({ isOpen, onCancel, t }) =>
+const ExportModal: FC<ExportModalProps> = ({ isOpen, onAction, t, exportConfig }) =>
     isOpen ? (
         <>
             <div className="export-modal-fade" />
             <div className="export-modal-body">
-                <div className="export-modal-header">
-                    <span className="export-modal-title">{t('export_modal_title')}</span>
-                    <button className="export-modal-close-button" onClick={onCancel}>
-                        ×
-                    </button>
-                </div>
-                <div className="export-modal-content">Content</div>
-                <div className="export-modal-footer">
-                    <button className="export-modal-footer-button" onClick={onCancel}>
-                        {t('export_modal_button_label_cancel')}
-                    </button>
-                    <button className="export-modal-footer-button">
-                        {t('export_modal_button_label_export')}
-                    </button>
-                </div>
+                <ModalHeader t={t} onAction={onAction} />
+                <div className="export-modal-content">data 1</div>
+                <ModalFooter t={t} onAction={onAction} exportConfig={exportConfig.shared} />
             </div>
         </>
     ) : null;

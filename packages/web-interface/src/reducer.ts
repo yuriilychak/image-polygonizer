@@ -10,6 +10,7 @@ import type {
     ReducerState,
     SettingChangePayload,
     ButtonAction,
+    ExportAction,
 } from './types';
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
@@ -132,6 +133,12 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
     projectNameChange: (state, projectName: string) => ({ ...state, projectName }),
     openExportModal: state => ({ ...state, isExportModalOpen: true }),
     closeExportModal: state => ({ ...state, isExportModalOpen: false, disabled: false, currentAction: 'none' }),
+    toggleSharedExportConfig: (state, action: ExportAction) => {
+        const currentValue = state.exportConfig.shared[action as 'exportPolygons' | 'exportTriangles'];
+        const shared = { ...state.exportConfig.shared, [action]: !currentValue };
+
+        return { ...state, exportConfig: { ...state.exportConfig, shared } };
+    }
 };
 
 export const INITIAL_STATE: ReducerState = {
@@ -147,6 +154,13 @@ export const INITIAL_STATE: ReducerState = {
     disabled: false,
     buttonActions: ['import'],
     hasCancelFileListener: false,
+    exportConfig: {
+        shared: {
+            exportPolygons: true,
+            exportTriangles: true,
+        },
+        fileConfig: {},
+    }
 };
 
 export const REDUCER = (state: ReducerState, { type, payload }: ReducerEvent) =>

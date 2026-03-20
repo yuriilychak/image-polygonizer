@@ -23,6 +23,8 @@
     "image_config_input_help_minimalDistance": "Максимальное расстояние от неоптимизированного полигона для уменьшения количества точек во время упрощения",
     "button_label_language": "Язык",
     "export_modal_title": "Экспорт проекта",
-    "export_modal_button_label_export": "Экспорт",
-    "export_modal_button_label_cancel": "Отмена"
+    "export_modal_button_label_exportPolygons": "Export polygons",
+    "export_modal_button_label_exportTriangles": "Export triangles",
+    "export_modal_button_label_submitExport": "Экспорт",
+    "export_modal_button_label_cancelExport": "Отмена"
 }

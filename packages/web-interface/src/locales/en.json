@@ -23,7 +23,9 @@
     "image_config_input_help_minimalDistance": "Max distance from non optimized polygon to reduce point count during simplification",
     "button_label_language": "Language",
     "export_modal_title": "Export project",
-    "export_modal_button_label_export": "Export",
-    "export_modal_button_label_cancel": "Cancel"
+    "export_modal_button_label_exportPolygons": "Export polygons",
+    "export_modal_button_label_exportTriangles": "Export triangles",
+    "export_modal_button_label_submitExport": "Export",
+    "export_modal_button_label_cancelExport": "Cancel"
 
 }

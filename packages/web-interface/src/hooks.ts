@@ -1,11 +1,23 @@
-import { useRef, useReducer, useEffect, useCallback, ChangeEventHandler, MouseEventHandler } from 'react';
+import {
+    useRef,
+    useReducer,
+    useEffect,
+    useCallback,
+    ChangeEventHandler,
+    MouseEventHandler,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { INITIAL_STATE, REDUCER, getReducerEvent } from './reducer';
 import { loadProject, saveProject } from './helpers';
 import { PROJECT_EXTENSION } from './constants';
 
 import type { ImageConfig } from 'image-polygonizer';
-import type { ButtonActionCallback, ImageActionCallback, SettingChangeCallback } from './types';
+import type {
+    ButtonActionCallback,
+    ExportAction,
+    ImageActionCallback,
+    SettingChangeCallback,
+} from './types';
 
 export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
@@ -25,6 +37,7 @@ export default function usePolygonizer() {
         disabled,
         buttonActions,
         hasCancelFileListener,
+        exportConfig,
     } = state;
 
     const onActionClick: ButtonActionCallback = useCallback(
@@ -63,46 +76,73 @@ export default function usePolygonizer() {
         [onCancelFileUpload, hasCancelFileListener]
     );
 
-    const onImageUpload: ChangeEventHandler<HTMLInputElement> = useCallback(async ({ target }) => {
-        const files = target.files;
+    const onImageUpload: ChangeEventHandler<HTMLInputElement> = useCallback(
+        async ({ target }) => {
+            const files = target.files;
 
-        if (!files) {
-            dispatch(getReducerEvent('setEnabled'));
-            return;
+            if (!files) {
+                dispatch(getReducerEvent('setEnabled'));
+                return;
+            }
+
+            const result: ImageConfig[] = await imagePolygonizer.importImages(files);
+
+            if (result.length > 0) {
+                dispatch(getReducerEvent('addImages', result));
+            }
+
+            target.value = '';
+        },
+        [imagePolygonizer]
+    );
+
+    const onProjectUpload: ChangeEventHandler<HTMLInputElement> = useCallback(
+        async ({ target }) => {
+            const file = target.files?.[0];
+
+            if (!file) {
+                dispatch(getReducerEvent('resetAction'));
+                return;
+            }
+
+            const data = await loadProject(file);
+            const result = await imagePolygonizer.deserializeImages(data);
+            const payload = {
+                images: result,
+                projectName: file.name.replace(PROJECT_EXTENSION, ''),
+            };
+
+            dispatch(getReducerEvent('importProject', payload));
+            target.value = '';
+        },
+        [imagePolygonizer]
+    );
+
+    const onSwitchLanguage: MouseEventHandler = useCallback(
+        () => dispatch(getReducerEvent('switchLanguage')),
+        []
+    );
+
+    const onProjectNameChange = useCallback(
+        (newName: string) => dispatch(getReducerEvent('projectNameChange', newName)),
+        []
+    );
+
+    const onExportAction = useCallback((action: ExportAction) => {
+        switch (action) {
+            case 'exportPolygons':
+            case 'exportTriangles':
+                dispatch(getReducerEvent('toggleSharedExportConfig', action));
+                break;
+            case 'cancelExport':
+                dispatch(getReducerEvent('closeExportModal'));
+                return;
+            case 'submitExport':
+                dispatch(getReducerEvent('closeExportModal'));
+                break;
+            default:
         }
-
-        const result: ImageConfig[] = await imagePolygonizer.importImages(files);
-
-        if (result.length > 0) {
-            dispatch(getReducerEvent('addImages', result));
-        }
-
-        target.value = '';
-    }, [imagePolygonizer]);
-
-    const onProjectUpload: ChangeEventHandler<HTMLInputElement> = useCallback(async ({ target }) => {
-        const file = target.files?.[0];
-
-
-
-        if (!file) {
-            dispatch(getReducerEvent('resetAction'));
-            return;
-        }
-
-        const data = await loadProject(file);
-        const result = await imagePolygonizer.deserializeImages(data);
-        const payload = { images: result, projectName: file.name.replace(PROJECT_EXTENSION, '') };
-
-        dispatch(getReducerEvent('importProject', payload));
-        target.value = '';
-    }, [imagePolygonizer]);
-
-    const onSwitchLanguage: MouseEventHandler = useCallback(() => dispatch(getReducerEvent('switchLanguage')), []);
-
-    const onProjectNameChange = useCallback((newName: string) => dispatch(getReducerEvent('projectNameChange', newName)), []);
-
-    const onCloseExportModal = useCallback(() => dispatch(getReducerEvent('closeExportModal')), []);
+    }, []);
 
     useEffect(() => {
         if (!isInit || currentAction === 'none') {
@@ -113,11 +153,13 @@ export default function usePolygonizer() {
             case 'generate':
                 imagePolygonizer
                     .polygonize(images.filter(img => img.selected))
-                    .then((outputs) => dispatch(getReducerEvent('updatePolygonInfo', outputs)));
+                    .then(outputs => dispatch(getReducerEvent('updatePolygonInfo', outputs)));
                 break;
             case 'import':
                 if (projectLoaderRef.current) {
-                    projectLoaderRef.current.addEventListener('cancel', onCancelProjectUpload, { once: true });
+                    projectLoaderRef.current.addEventListener('cancel', onCancelProjectUpload, {
+                        once: true,
+                    });
                     projectLoaderRef.current.click();
                 }
                 break;
@@ -127,7 +169,7 @@ export default function usePolygonizer() {
             case 'save':
                 imagePolygonizer
                     .serializeImages(images)
-                    .then((data) => saveProject(projectName, data, saveAnchorRef.current!))
+                    .then(data => saveProject(projectName, data, saveAnchorRef.current!))
                     .then(() => {
                         dispatch(getReducerEvent('loadingFinish'));
                     });
@@ -163,6 +205,7 @@ export default function usePolygonizer() {
         onProjectUpload,
         currentImage,
         currentLanguage,
+        exportConfig,
         disabled,
         buttonActions,
         onActionClick,
@@ -171,6 +214,6 @@ export default function usePolygonizer() {
         onImageUpload,
         onSwitchLanguage,
         onProjectNameChange,
-        onCloseExportModal,
+        onExportAction,
     };
 }

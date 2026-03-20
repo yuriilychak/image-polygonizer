@@ -23,6 +23,8 @@
     "image_config_input_help_minimalDistance": "Maksymalna odległość od nieoptymalnego wielokąta w celu zmniejszenia liczby punktów podczas upraszczania",
     "button_label_language": "Język",
     "export_modal_title": "Eksportuj projekt",
-    "export_modal_button_label_export": "Eksportuj",
-    "export_modal_button_label_cancel": "Anuluj"
+    "export_modal_button_label_exportPolygons": "Export polygons",
+    "export_modal_button_label_exportTriangles": "Export triangles",
+    "export_modal_button_label_submitExport": "Eksportuj",
+    "export_modal_button_label_cancelExport": "Anuluj"
 }

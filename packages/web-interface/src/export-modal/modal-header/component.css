@@ -1,0 +1,36 @@
+.export-modal-header {
+    display: flex;
+    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 8px 16px;
+    box-sizing: border-box;
+    border-bottom: 2px solid #88182f;
+    border-top: 2px solid #2c3039;
+}
+
+.export-modal-title {
+    flex: 1;
+    user-select: none;
+}
+
+.export-modal-close-button {
+    cursor: pointer;
+    background-color: transparent;
+    color: #ffffff;
+    border: none;
+    font: inherit;
+    transition-duration: 0.2s;
+    animation-timing-function: ease-in-out;
+    font-size: 24px;
+}
+
+.export-modal-close-button:hover {
+    transform: scale(1.2);
+}
+
+.export-modal-close-button:active {
+    transform: scale(0.9);
+}
