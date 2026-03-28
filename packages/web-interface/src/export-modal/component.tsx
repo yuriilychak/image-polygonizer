@@ -2,10 +2,10 @@ import { ModalHeader } from './modal-header';
 import { ModalFooter } from './modal-footer';
 import { ImageCard } from './image-card';
 
-import type { ImageConfig } from 'image-polygonizer';
+import type { ImageConfig, ExportConfig, CropOption } from 'image-polygonizer';
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
-import type { ExportAction, ExportConfig, CropOption } from '../types';
+import type { ExportAction } from '../types';
 
 import './component.css';
 

@@ -2,7 +2,7 @@ import { ImagePolygonizer } from 'image-polygonizer';
 import { getButtonActions } from './helpers';
 import { LANGUAGE_LIST, CROP_ALL_ID } from './constants';
 
-import type { ImageConfig, ImageActionPayload } from 'image-polygonizer';
+import type { ImageConfig, ImageActionPayload, CropOption, CropConfig } from 'image-polygonizer';
 import type {
     ReducerAction,
     ReducerEvent,
@@ -11,8 +11,6 @@ import type {
     SettingChangePayload,
     ButtonAction,
     ExportAction,
-    CropOption,
-    CropConfig,
 } from './types';
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {

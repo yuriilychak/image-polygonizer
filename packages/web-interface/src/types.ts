@@ -1,10 +1,8 @@
-import type { ImageConfig, ImageConfigKey, ImagePolygonizerInstance } from 'image-polygonizer';
+import type { ImageConfig, ImageConfigKey, ImagePolygonizerInstance, ExportConfig } from 'image-polygonizer';
 
 export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
 
 export type DrawItem = 'alpha' | 'contour' | 'polygon' | 'triangles';
-
-export type CropOption = 'none' | 'alpha' | 'polygon' | '';
 
 export type ReducerAction =
   | 'init'
@@ -41,18 +39,6 @@ export type ButtonActionCallback = (action: ButtonAction) => void;
 export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
-
-export type SharedExportConfig = {
-  exportPolygons: boolean;
-  exportTriangles: boolean;
-};
-
-export type CropConfig = Record<string, CropOption>;
-
-export type ExportConfig = {
-  shared: SharedExportConfig;
-  fileConfig: CropConfig;
-}
 
 export type ReducerState = {
   isExportModalOpen: boolean;

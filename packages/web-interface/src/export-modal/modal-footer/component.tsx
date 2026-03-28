@@ -4,7 +4,8 @@ import { CROP_ALL_ID } from '../../constants';
 
 import type { FC, MouseEvent, ChangeEvent } from 'react';
 import type { TFunction } from 'i18next';
-import type { ExportAction, SharedExportConfig, CropOption } from '../../types';
+import type { SharedExportConfig, CropOption } from 'image-polygonizer';
+import type { ExportAction } from '../../types';
 
 import './component.css';
 

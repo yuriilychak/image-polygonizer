@@ -60,3 +60,17 @@ export type ThreadInput<T extends ThreadType = ThreadType> = {
 };
 
 export type ThreadOutput<T extends ThreadType = ThreadType> = ThreadOutputDataByType[T];
+
+export type CropOption = 'none' | 'alpha' | 'polygon' | '';
+
+export type SharedExportConfig = {
+    exportPolygons: boolean;
+    exportTriangles: boolean;
+};
+
+export type CropConfig = Record<string, CropOption>;
+
+export type ExportConfig = {
+    shared: SharedExportConfig;
+    fileConfig: CropConfig;
+};

@@ -5,7 +5,7 @@ import ImagePreview from './image-preview';
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
 import type { ImageConfig } from 'image-polygonizer';
-import type { CropOption } from '../../types';
+import type { CropOption } from 'image-polygonizer';
 
 export type ExportImageCardProps = {
     t: TFunction;

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
 import type { ChangeEvent, FC } from 'react';
-import type { CropOption } from '../../types';
+import type { CropOption } from 'image-polygonizer';
 
 export type RadioItemProps = {
     imageId: string;

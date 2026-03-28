@@ -9,4 +9,8 @@ export type {
     ImageConfigKey,
     ImagePolygonizerInstance,
     ImageActionPayload,
+    CropOption,
+    SharedExportConfig,
+    CropConfig,
+    ExportConfig,
 } from './types';

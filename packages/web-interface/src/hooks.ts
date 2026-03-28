@@ -11,10 +11,9 @@ import { INITIAL_STATE, REDUCER, getReducerEvent } from './reducer';
 import { loadProject, saveProject } from './helpers';
 import { PROJECT_EXTENSION } from './constants';
 
-import type { ImageConfig } from 'image-polygonizer';
+import type { ImageConfig, CropOption } from 'image-polygonizer';
 import type {
     ButtonActionCallback,
-    CropOption,
     ExportAction,
     ImageActionCallback,
     SettingChangeCallback,
