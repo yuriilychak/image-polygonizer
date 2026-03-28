@@ -5,7 +5,7 @@ type ImagePreviewProps = {
     src: ImageBitmap;
 };
 
-export const ImagePreview: FC<ImagePreviewProps> = ({ src }) => {
+const ImagePreview: FC<ImagePreviewProps> = ({ src }) => {
     const [imgSrc, setImgSrc] = useState<string>('');
     const size = 200;
 
@@ -45,4 +45,6 @@ export const ImagePreview: FC<ImagePreviewProps> = ({ src }) => {
             />
         </div>
     );
-};
+};` `
+
+export default ImagePreview;

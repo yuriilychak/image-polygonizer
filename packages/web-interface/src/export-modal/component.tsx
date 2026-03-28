@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ModalHeader } from './modal-header';
 import { ModalFooter } from './modal-footer';
-import ImageCard from './image-card';
+import { ImageCard } from './image-card';
 
 import type { ImageConfig } from 'image-polygonizer';
 import type { FC } from 'react';
@@ -34,7 +34,7 @@ const ExportModal: FC<ExportModalProps> = ({ isOpen, onAction, t, exportConfig, 
             <div className="export-modal-fade" />
             <div className="export-modal-body">
                 <ModalHeader t={t} onAction={onAction} />
-                <div className="export-modal-content export-modal-card-list">
+                <div className="export-modal-content">
                     {selectedImages.length === 0 ? (
                         <div className="export-modal-empty">No valid images to preview</div>
                     ) : (

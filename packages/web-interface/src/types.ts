@@ -4,6 +4,8 @@ export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
 
 export type DrawItem = 'alpha' | 'contour' | 'polygon' | 'triangles';
 
+export type CropOption = 'none' | 'alpha' | 'polygon';
+
 export type ReducerAction =
   | 'init'
   | 'addImages'

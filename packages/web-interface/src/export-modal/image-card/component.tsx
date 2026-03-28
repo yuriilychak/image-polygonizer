@@ -1,22 +1,17 @@
+import { CROP_OPTIONS_ORDER } from '../constants';
+import RadioItem from './radio-item';
+import ImagePreview from './image-preview';
+
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
 import type { ImageConfig } from 'image-polygonizer';
-
-import { ImagePreview } from './image-preview';
+import type { CropOption } from '../../types';
 
 export type ExportImageCardProps = {
     t: TFunction;
     image: ImageConfig;
-    selectedCrop?: string;
-    onCropChange(imageId: string, value: string): void;
-};
-
-const CROP_OPTIONS = ['none', 'alpha', 'polygon'] as const;
-
-const CropOptionLabels: Record<(typeof CROP_OPTIONS)[number], string> = {
-    none: 'export_modal_crop_none',
-    alpha: 'export_modal_crop_alpha',
-    polygon: 'export_modal_crop_polygon',
+    selectedCrop?: CropOption;
+    onCropChange(imageId: string, value: CropOption): void;
 };
 
 const ExportImageCard: FC<ExportImageCardProps> = ({ t, image, selectedCrop, onCropChange }) => (
@@ -37,17 +32,15 @@ const ExportImageCard: FC<ExportImageCardProps> = ({ t, image, selectedCrop, onC
                 aria-label={t('export_modal_cropping_title')}
             >
                 <div className="export-modal-crop-options">
-                    {CROP_OPTIONS.map(option => (
-                        <label key={option} title={t(`export_modal_crop_tooltip_${option}`)}>
-                            <input
-                                type="radio"
-                                name={`crop-${image.id}`}
-                                value={option}
-                                checked={selectedCrop === option}
-                                onChange={() => onCropChange(image.id, option)}
-                            />
-                            {t(CropOptionLabels[option])}
-                        </label>
+                    {CROP_OPTIONS_ORDER.map(option => (
+                        <RadioItem
+                            key={option}
+                            imageId={image.id}
+                            option={option}
+                            label={t(`export_modal_crop_${option}`)}
+                            checked={selectedCrop === option}
+                            onChange={onCropChange}
+                        />
                     ))}
                 </div>
             </div>
