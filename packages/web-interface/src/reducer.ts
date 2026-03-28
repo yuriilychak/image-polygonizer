@@ -1,6 +1,6 @@
 import { ImagePolygonizer } from 'image-polygonizer';
 import { getButtonActions } from './helpers';
-import { LANGUAGE_LIST } from './constants';
+import { LANGUAGE_LIST, CROP_ALL_ID } from './constants';
 
 import type { ImageConfig, ImageActionPayload } from 'image-polygonizer';
 import type {
@@ -11,6 +11,8 @@ import type {
     SettingChangePayload,
     ButtonAction,
     ExportAction,
+    CropOption,
+    CropConfig,
 } from './types';
 
 const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
@@ -100,11 +102,11 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
             return update
                 ? {
-                      ...img,
-                      polygonInfo: update.data!,
-                      hasPolygons: true,
-                      outdated: false,
-                  }
+                    ...img,
+                    polygonInfo: update.data!,
+                    hasPolygons: true,
+                    outdated: false,
+                }
                 : img;
         });
 
@@ -131,14 +133,37 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
         return { ...state, ...payload, currentImage, disabled: false, buttonActions };
     },
     projectNameChange: (state, projectName: string) => ({ ...state, projectName }),
-    openExportModal: state => ({ ...state, isExportModalOpen: true }),
-    closeExportModal: state => ({ ...state, isExportModalOpen: false, disabled: false, currentAction: 'none' }),
+    openExportModal: state => ({
+        ...state,
+        isExportModalOpen: true,
+        exportConfig: {
+            fileConfig: state.images.reduce((acc, img) => ({ ...acc, [img.id]: 'none' }), {}),
+            shared: { exportPolygons: true, exportTriangles: true },
+        },
+        disabled: true,
+    }),
+    closeExportModal: state => ({
+        ...state,
+        isExportModalOpen: false,
+        disabled: false,
+        currentAction: 'none',
+    }),
     toggleSharedExportConfig: (state, action: ExportAction) => {
-        const currentValue = state.exportConfig.shared[action as 'exportPolygons' | 'exportTriangles'];
-        const shared = { ...state.exportConfig.shared, [action]: !currentValue };
+        const { exportConfig } = state;
+        const currentValue = exportConfig.shared[action as 'exportPolygons' | 'exportTriangles'];
+        const shared = { ...exportConfig.shared, [action]: !currentValue };
 
-        return { ...state, exportConfig: { ...state.exportConfig, shared } };
-    }
+        return { ...state, exportConfig: { ...exportConfig, shared } };
+    },
+    setFileCropOption: (state, { id, data = 'none' }: ImageActionPayload<CropOption>) => {
+        const { images, exportConfig } = state;
+        const fileConfig =
+            id === CROP_ALL_ID
+                ? images.reduce<CropConfig>((acc, img) => ({ ...acc, [img.id]: data }), {})
+                : { ...exportConfig.fileConfig, [id]: data };
+
+        return { ...state, exportConfig: { ...exportConfig, fileConfig } };
+    },
 };
 
 export const INITIAL_STATE: ReducerState = {
@@ -160,7 +185,7 @@ export const INITIAL_STATE: ReducerState = {
             exportTriangles: true,
         },
         fileConfig: {},
-    }
+    },
 };
 
 export const REDUCER = (state: ReducerState, { type, payload }: ReducerEvent) =>

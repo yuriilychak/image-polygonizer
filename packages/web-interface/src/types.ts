@@ -4,7 +4,7 @@ export type ButtonAction = 'generate' | 'import' | 'export' | 'save' | 'none';
 
 export type DrawItem = 'alpha' | 'contour' | 'polygon' | 'triangles';
 
-export type CropOption = 'none' | 'alpha' | 'polygon';
+export type CropOption = 'none' | 'alpha' | 'polygon' | '';
 
 export type ReducerAction =
   | 'init'
@@ -27,7 +27,8 @@ export type ReducerAction =
   | 'projectNameChange'
   | 'openExportModal'
   | 'closeExportModal'
-  | 'toggleSharedExportConfig';
+  | 'toggleSharedExportConfig'
+  | 'setFileCropOption';
 
 export type ExportAction = 'exportPolygons' | 'exportTriangles' | 'cancelExport' | 'submitExport';
 
@@ -46,9 +47,11 @@ export type SharedExportConfig = {
   exportTriangles: boolean;
 };
 
+export type CropConfig = Record<string, CropOption>;
+
 export type ExportConfig = {
   shared: SharedExportConfig;
-  fileConfig: Record<string, object>;
+  fileConfig: CropConfig;
 }
 
 export type ReducerState = {

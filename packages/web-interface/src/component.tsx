@@ -29,6 +29,7 @@ const App: FC = () => {
         onSwitchLanguage,
         onProjectNameChange,
         onExportAction,
+        onCropChange,
     } = usePolygonizer();
 
     return (
@@ -58,6 +59,7 @@ const App: FC = () => {
                 images={images}
                 isOpen={isExportModalOpen}
                 onAction={onExportAction}
+                onCropChange={onCropChange}
                 exportConfig={exportConfig}
             />
         </div>

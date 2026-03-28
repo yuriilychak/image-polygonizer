@@ -6,4 +6,6 @@ export const PROJECT_EXTENSION = '.ipp';
 
 const IMAGE_FORMATS: SupportedImageFormats[] = ['png', 'webp'];
 
+export const CROP_ALL_ID = 'All';
+
 export const IMAGE_INPUT_ACCEPT = IMAGE_FORMATS.reduce((acc, format) => `${acc},image/${format},.${format}`, '');

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ModalHeader } from './modal-header';
 import { ModalFooter } from './modal-footer';
 import { ImageCard } from './image-card';
@@ -6,7 +5,7 @@ import { ImageCard } from './image-card';
 import type { ImageConfig } from 'image-polygonizer';
 import type { FC } from 'react';
 import type { TFunction } from 'i18next';
-import type { ExportAction, ExportConfig } from '../types';
+import type { ExportAction, ExportConfig, CropOption } from '../types';
 
 import './component.css';
 
@@ -16,18 +15,29 @@ type ExportModalProps = {
     exportConfig: ExportConfig;
     images: ImageConfig[];
     onAction(action: ExportAction): void;
+    onCropChange(imageId: string, value: CropOption): void;
 };
 
-const ExportModal: FC<ExportModalProps> = ({ isOpen, onAction, t, exportConfig, images }) => {
-    const [cropSelection, setCropSelection] = useState<Record<string, string>>({});
-
+const ExportModal: FC<ExportModalProps> = ({
+    isOpen,
+    onAction,
+    t,
+    exportConfig,
+    images,
+    onCropChange,
+}) => {
     const selectedImages = images.filter(
         image => image.selected && image.hasPolygons && !image.outdated
     );
 
-    const onCropChange = (imageId: string, value: string) => {
-        setCropSelection(prev => ({ ...prev, [imageId]: value }));
-    };
+    const sharedCrop: CropOption =
+        selectedImages.length === 0
+            ? ''
+            : selectedImages.slice(1).reduce<CropOption>(
+                  (acc, image) => 
+                    acc !== exportConfig.fileConfig[image.id] ? '' : acc,
+                  (exportConfig.fileConfig[selectedImages[0].id] || '') as CropOption
+              );
 
     return isOpen ? (
         <>
@@ -43,13 +53,19 @@ const ExportModal: FC<ExportModalProps> = ({ isOpen, onAction, t, exportConfig, 
                                 key={image.id}
                                 t={t}
                                 image={image}
-                                selectedCrop={cropSelection[image.id]}
+                                selectedCrop={exportConfig.fileConfig[image.id]}
                                 onCropChange={onCropChange}
                             />
                         ))
                     )}
                 </div>
-                <ModalFooter t={t} onAction={onAction} exportConfig={exportConfig.shared} />
+                <ModalFooter
+                    t={t}
+                    onAction={onAction}
+                    exportConfig={exportConfig.shared}
+                    onCropChange={onCropChange}
+                    sharedCrop={sharedCrop}
+                />
             </div>
         </>
     ) : null;

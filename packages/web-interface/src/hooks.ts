@@ -14,6 +14,7 @@ import { PROJECT_EXTENSION } from './constants';
 import type { ImageConfig } from 'image-polygonizer';
 import type {
     ButtonActionCallback,
+    CropOption,
     ExportAction,
     ImageActionCallback,
     SettingChangeCallback,
@@ -128,6 +129,12 @@ export default function usePolygonizer() {
         []
     );
 
+    const onCropChange = useCallback(
+        (id: string, data: CropOption) =>
+            dispatch(getReducerEvent('setFileCropOption', { id, data })),
+        []
+    );
+
     const onExportAction = useCallback((action: ExportAction) => {
         switch (action) {
             case 'exportPolygons':
@@ -215,5 +222,6 @@ export default function usePolygonizer() {
         onSwitchLanguage,
         onProjectNameChange,
         onExportAction,
+        onCropChange,
     };
 }
