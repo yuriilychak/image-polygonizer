@@ -1,5 +1,7 @@
 # Image Polygonizer
 
+![Image Polygonizer interface](res/web-interface-screenshot.png)
+
 **Image Polygonizer**: A browser-based tool for converting PNG/WebP sprite assets into polygon and triangle mesh data ready for game engines and rendering pipelines.
 
 ## What is Image Polygonizer?
