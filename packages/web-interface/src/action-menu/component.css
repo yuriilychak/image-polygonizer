@@ -35,6 +35,22 @@
     user-select: none;
 }
 
+.action-menu-github-link {
+    display: flex;
+    align-items: center;
+    color: #ffffff;
+    transition-duration: 0.2s;
+    animation-timing-function: ease-in-out;
+}
+
+.action-menu-github-link:hover {
+    transform: scale(1.2);
+}
+
+.action-menu-github-link:active {
+    transform: scale(0.9);
+}
+
 .action-menu-language-button {
     cursor: pointer;
     text-transform: uppercase;
