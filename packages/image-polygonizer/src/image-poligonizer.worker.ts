@@ -1,8 +1,8 @@
 import WasmWrapper from "./wasm-wrapper";
-import { fileToImageConfig, imageBitmapToRgbaPixels } from "./helpers";
+import { fileToImageConfig, imageBitmapToRgbaPixels, exportImage, buildExportConfig } from "./helpers";
 import { ImageConfigSerialization } from "./image-config-serialization";
 
-import type { ImageConfig, ThreadInput, ThreadOutput } from "./types";
+import type { ImageConfig, ImageExportConfig, ThreadInput, ThreadOutput } from "./types";
 
 const wasm = new WasmWrapper();
 let resolveWasmReady!: () => void;
@@ -27,6 +27,14 @@ self.onmessage = async ({ data }: MessageEvent<ThreadInput>) => {
             message = config;
             transferrable.push(config.src);
             transferrable.push(config.polygonInfo.buffer);
+            break;
+        }
+        case 'projectExport': {
+            const { imageConfig, exportConfig } = data.data as { imageConfig: ImageConfig; exportConfig: ImageExportConfig };
+            const { img, cropX, cropY } = await exportImage(imageConfig.src, imageConfig.polygonInfo, exportConfig.cropOption);
+            const config = buildExportConfig(imageConfig.polygonInfo, cropX, cropY, exportConfig);
+            message = { name: imageConfig.label, id: imageConfig.id, img, config };
+            transferrable.push(img);
             break;
         }
         case 'projectSave': {

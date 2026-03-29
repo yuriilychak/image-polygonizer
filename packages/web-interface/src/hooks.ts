@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { INITIAL_STATE, REDUCER, getReducerEvent } from './reducer';
-import { loadProject, saveProject } from './helpers';
+import { loadProject, saveProject, exportProject } from './helpers';
 import { PROJECT_EXTENSION } from './constants';
 
 import type { ImageConfig, CropOption } from 'image-polygonizer';
@@ -143,12 +143,20 @@ export default function usePolygonizer() {
             case 'cancelExport':
                 dispatch(getReducerEvent('closeExportModal'));
                 return;
-            case 'submitExport':
+            case 'submitExport': {
                 dispatch(getReducerEvent('closeExportModal'));
+                const exportableImages = images.filter(
+                    img => img.selected && img.hasPolygons && !img.outdated
+                );
+                imagePolygonizer
+                    .exportImages(exportableImages, exportConfig)
+                    .then(results => exportProject(results, projectName, saveAnchorRef.current!))
+                    .then(() => dispatch(getReducerEvent('loadingFinish')));
                 break;
+            }
             default:
         }
-    }, []);
+    }, [images, imagePolygonizer, exportConfig, projectName, saveAnchorRef]);
 
     useEffect(() => {
         if (!isInit || currentAction === 'none') {

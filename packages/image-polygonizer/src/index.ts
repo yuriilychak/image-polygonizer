@@ -11,6 +11,8 @@ export type {
     ImageActionPayload,
     CropOption,
     SharedExportConfig,
+    ImageExportConfig,
     CropConfig,
     ExportConfig,
+    ExportedImage,
 } from './types';

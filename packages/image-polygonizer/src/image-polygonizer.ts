@@ -1,7 +1,8 @@
 import Parallel from './parallel';
 import { ImageConfigSerialization } from './image-config-serialization';
 
-import type { ImageConfig, ImagePolygonizerInstance, ImageActionPayload, ThreadInput } from './types';
+import type { ImageConfig, ImageExportConfig, ExportConfig, ExportedImage, ImagePolygonizerInstance, ImageActionPayload, ThreadInput } from './types';
+
 export default class ImagePolygonizer implements ImagePolygonizerInstance {
     #parallel: Parallel;
 
@@ -95,6 +96,30 @@ export default class ImagePolygonizer implements ImagePolygonizerInstance {
                 this.#parallel.start(
                     threadInput,
                     (threadOutput: ImageConfig[]) => resolve(threadOutput),
+                    reject
+                )
+            )
+            : Promise.resolve([]);
+    }
+
+    async exportImages(
+        images: ImageConfig[],
+        exportConfig: ExportConfig,
+    ): Promise<ExportedImage[]> {
+        const threadInput: ThreadInput<'projectExport'>[] = images.map((imageConfig) => {
+            const imageExportConfig: ImageExportConfig = {
+                ...exportConfig.shared,
+                cropOption: exportConfig.fileConfig[imageConfig.id] ?? 'none',
+            };
+            
+            return { type: 'projectExport', data: { imageConfig, exportConfig: imageExportConfig } };
+        });
+
+        return threadInput.length !== 0
+            ? new Promise((resolve, reject) =>
+                this.#parallel.start(
+                    threadInput,
+                    (threadOutput: ExportedImage[]) => resolve(threadOutput),
                     reject
                 )
             )

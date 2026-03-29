@@ -33,12 +33,13 @@ export interface ImagePolygonizerInstance {
     polygonize(polygonizeImages: ImageConfig[]): Promise<ImageActionPayload<Uint16Array>[]>;
     serializeImages(images: ImageConfig[]): Promise<Uint8Array>;
     deserializeImages(data: Uint8Array): Promise<ImageConfig[]>;
+    exportImages(images: ImageConfig[], exportConfig: ExportConfig): Promise<ExportedImage[]>;
 }
 
 type ThreadInputDataByType = {
     init: ArrayBuffer;
     projectImport: Uint8Array;
-    projectExport: { projectId: string; format: 'zip' | 'json' };
+    projectExport: { imageConfig: ImageConfig; exportConfig: ImageExportConfig };
     projectSave: ImageConfig;
     polygonize: ImageConfig;
     addImages: File;
@@ -47,7 +48,7 @@ type ThreadInputDataByType = {
 type ThreadOutputDataByType = {
     init: undefined;
     projectImport: ImageConfig;
-    projectExport: { projectId: string; format: 'zip' | 'json' };
+    projectExport: ExportedImage;
     projectSave: Uint8Array;
     polygonize: ImageActionPayload<Uint16Array>;
     addImages: ImageConfig;
@@ -61,12 +62,23 @@ export type ThreadInput<T extends ThreadType = ThreadType> = {
 
 export type ThreadOutput<T extends ThreadType = ThreadType> = ThreadOutputDataByType[T];
 
+export type ExportedImage = {
+    name: string;
+    id: string;
+    img: ImageBitmap;
+    config: object;
+};
+
 export type CropOption = 'none' | 'alpha' | 'polygon' | '';
 
-export type SharedExportConfig = {
+export interface SharedExportConfig {
     exportPolygons: boolean;
     exportTriangles: boolean;
-};
+}
+
+export interface ImageExportConfig extends SharedExportConfig {
+    cropOption: CropOption;
+}
 
 export type CropConfig = Record<string, CropOption>;
 
