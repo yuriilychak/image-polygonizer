@@ -10,5 +10,6 @@ else
 fi
 
 mkdir -p ../../dist
+cp ../../res/icon.svg ../../dist/icon.svg
 mv dist/image-poligonizer_bg.wasm ../../dist/image-polygonizer.wasm
 rm -rf dist
