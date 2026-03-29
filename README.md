@@ -68,8 +68,8 @@ Each exported JSON file has the following shape (fields are present only if the 
 
 ## Configuration parameters
 
-| Parameter | Range | Description |
-|---|---|---|
+| Parameter           | Range   | Description |
+|---------------------|---------|---|
 | **Alpha threshold** | 1 – 255 | Pixels with alpha below this value are considered transparent. Lower values include more semi-transparent pixels in the shape. |
 | **Minimal distance** | 1 – 255 | RDP simplification epsilon in pixels. Higher values produce fewer polygon vertices and a rougher approximation. |
 | **Max point count** | 4 – 255 | Hard cap on the number of vertices per polygon. The simplification is tightened until the count fits within this budget. |
