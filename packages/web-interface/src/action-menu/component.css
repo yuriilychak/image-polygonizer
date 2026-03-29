@@ -31,6 +31,7 @@
     border-bottom: 2px solid #88182f;
     display: flex;
     flex-direction: row;
+    align-items: center;
 }
 
 .action-menu-drawer-title {
@@ -46,8 +47,8 @@
 
 @media screen and (min-width: 960px) {
     .action-menu {
-        width: 360px;
-        min-width: 360px;
+        width: 400px;
+        min-width: 400px;
         height: 100%;
     }
 
@@ -70,7 +71,7 @@
     border-top: 2px solid #2c3039;
 }
 
-.action-menu-header span:first-child {
+.action-menu-header span {
     flex: 1;
     user-select: none;
 }

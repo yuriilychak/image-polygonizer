@@ -74,6 +74,17 @@ const ActionMenu: FC<ActionMenuProps> = ({
     return (
         <div className="action-menu">
             <div className="action-menu-header">
+                <svg
+                    width="24"
+                    height="24"
+                    version="1.1"
+                    viewBox="0 0 24 24"
+                    xml:space="preserve"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path d="m0 11 10-11 4 9 10-4-5 18-12 1z" fill="#24529d" />
+                    <path d="m17 20 3-11-7 3-4-8-6 7 5 10z" fill="#7a9bd4" />
+                </svg>
                 <span>{t('action_menu_title')}</span>
                 {isLowResolution && (
                     <svg
