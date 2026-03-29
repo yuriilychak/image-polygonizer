@@ -197,3 +197,197 @@ pub(crate) fn extend_bit_mask(mask: &[u8], width: u16, height: u16, outline_size
 
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_rgba_pixels(width: usize, height: usize, alpha: u8) -> Vec<u8> {
+        let mut v = vec![0u8; width * height * 4];
+        for i in 0..width * height {
+            v[i * 4 + 3] = alpha;
+        }
+        v
+    }
+
+    fn get_bit(mask: &[u8], idx: usize) -> bool {
+        (mask[idx >> 3] >> (idx & 7)) & 1 != 0
+    }
+
+    fn set_bit(mask: &mut [u8], idx: usize) {
+        mask[idx >> 3] |= 1 << (idx & 7);
+    }
+
+    // ── pack_alpha_mask_bits ──────────────────────────────────────────────────
+
+    #[test]
+    fn pack_all_opaque_no_offset() {
+        let pixels = make_rgba_pixels(2, 2, 255);
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 1, 0);
+        assert_eq!(out.len(), 1);
+        for i in 0..4 {
+            assert!(get_bit(&out, i), "bit {i} should be set");
+        }
+    }
+
+    #[test]
+    fn pack_all_transparent_no_offset() {
+        let pixels = make_rgba_pixels(2, 2, 0);
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 1, 0);
+        assert_eq!(out.len(), 1);
+        for i in 0..4 {
+            assert!(!get_bit(&out, i), "bit {i} should not be set");
+        }
+    }
+
+    #[test]
+    fn pack_alpha_threshold() {
+        // alpha=127, threshold=128 → all 0
+        let pixels = make_rgba_pixels(2, 2, 127);
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 128, 0);
+        for i in 0..4 {
+            assert!(!get_bit(&out, i), "alpha=127 bit {i} should not be set");
+        }
+
+        // alpha=128, threshold=128 → all 1
+        let pixels = make_rgba_pixels(2, 2, 128);
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 128, 0);
+        for i in 0..4 {
+            assert!(get_bit(&out, i), "alpha=128 bit {i} should be set");
+        }
+
+        // alpha=255, threshold=1 → all 1
+        let pixels = make_rgba_pixels(2, 2, 255);
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 1, 0);
+        for i in 0..4 {
+            assert!(get_bit(&out, i), "alpha=255 bit {i} should be set");
+        }
+    }
+
+    #[test]
+    fn pack_with_offset() {
+        // 1x1 image, alpha=255, offset=1 → 3x3 output grid (9 pixels, 2 bytes)
+        let pixels = make_rgba_pixels(1, 1, 255);
+        let out = pack_alpha_mask_bits(&pixels, 1, 1, 1, 1);
+        assert_eq!(out.len(), 2);
+        // Only bit at (col=1, row=1) = index 1*3+1 = 4 should be set
+        for i in 0..9 {
+            if i == 4 {
+                assert!(get_bit(&out, i), "bit {i} should be set");
+            } else {
+                assert!(!get_bit(&out, i), "bit {i} should not be set");
+            }
+        }
+    }
+
+    #[test]
+    fn pack_mixed_pixels() {
+        // 2x2: (0,0)=opaque, (1,0)=transparent, (0,1)=transparent, (1,1)=opaque
+        let mut pixels = vec![0u8; 2 * 2 * 4];
+        pixels[3] = 255;  // (0,0)
+        pixels[7] = 0;    // (1,0)
+        pixels[11] = 0;   // (0,1)
+        pixels[15] = 255; // (1,1)
+        let out = pack_alpha_mask_bits(&pixels, 2, 2, 1, 0);
+        assert!(get_bit(&out, 0), "bit 0 (0,0) should be set");
+        assert!(!get_bit(&out, 1), "bit 1 (1,0) should not be set");
+        assert!(!get_bit(&out, 2), "bit 2 (0,1) should not be set");
+        assert!(get_bit(&out, 3), "bit 3 (1,1) should be set");
+    }
+
+    #[test]
+    fn pack_single_row() {
+        let pixels = make_rgba_pixels(4, 1, 255);
+        let out = pack_alpha_mask_bits(&pixels, 4, 1, 1, 0);
+        assert_eq!(out.len(), 1);
+        for i in 0..4 {
+            assert!(get_bit(&out, i), "bit {i} should be set");
+        }
+    }
+
+    #[test]
+    fn pack_output_size_no_offset() {
+        for &(w, h) in &[(1u16, 1u16), (2, 2), (3, 3), (4, 4), (8, 8), (7, 3)] {
+            let pixels = make_rgba_pixels(w as usize, h as usize, 128);
+            let out = pack_alpha_mask_bits(&pixels, w, h, 1, 0);
+            let expected = (w as usize * h as usize + 7) / 8;
+            assert_eq!(out.len(), expected, "size mismatch for {w}x{h}");
+        }
+    }
+
+    // ── extend_bit_mask ──────────────────────────────────────────────────────
+
+    #[test]
+    fn extend_zero_copies_unchanged() {
+        // ceil(25/8) = 4 bytes for a 5x5 grid
+        let mut mask = vec![0u8; 4];
+        set_bit(&mut mask, 0);
+        set_bit(&mut mask, 7);
+        set_bit(&mut mask, 12);
+        let out = extend_bit_mask(&mask, 5, 5, 0);
+        assert_eq!(out.len(), mask.len());
+        assert!(get_bit(&out, 0));
+        assert!(get_bit(&out, 7));
+        assert!(get_bit(&out, 12));
+        assert!(!get_bit(&out, 1));
+        assert!(!get_bit(&out, 5));
+    }
+
+    #[test]
+    fn extend_single_pixel_cross_shape() {
+        // 5x5 grid, pixel at (2,2) = index 12, extend by radius 1
+        // r=1: dx_max[0]=1, dx_max[1]=0
+        // dy=0: nx in [1,3] → bits 11,12,13
+        // dy=1 (ny=1,3): nx=2 → bits 7,17
+        let mut mask = vec![0u8; 4];
+        set_bit(&mut mask, 12);
+        let out = extend_bit_mask(&mask, 5, 5, 1);
+        let expected_set = [7usize, 11, 12, 13, 17];
+        for i in 0..25 {
+            if expected_set.contains(&i) {
+                assert!(get_bit(&out, i), "bit {i} should be set");
+            } else {
+                assert!(!get_bit(&out, i), "bit {i} should not be set");
+            }
+        }
+    }
+
+    #[test]
+    fn extend_zero_returns_same_size() {
+        let mask = vec![0u8; 4];
+        let out = extend_bit_mask(&mask, 5, 5, 0);
+        assert_eq!(out.len(), mask.len());
+    }
+
+    #[test]
+    fn extend_all_zero_stays_zero() {
+        let mask = vec![0u8; 4];
+        let out = extend_bit_mask(&mask, 5, 5, 3);
+        assert!(out.iter().all(|&b| b == 0), "all-zero mask must stay zero");
+    }
+
+    #[test]
+    fn extend_corner_pixel_clamped() {
+        // 5x5 grid, pixel at (0,0) = index 0, extend by radius 1
+        // dy=0, dx_max=1: nx in [0,1] → bits 0,1
+        // dy=1, dx_max=0: nx=0 → bit 5
+        // (1,1)=6 is at dist=√2 > 1, NOT set
+        let mut mask = vec![0u8; 4];
+        set_bit(&mut mask, 0);
+        let out = extend_bit_mask(&mask, 5, 5, 1);
+        assert!(get_bit(&out, 0), "bit 0 should be set");
+        assert!(get_bit(&out, 1), "bit 1 should be set");
+        assert!(get_bit(&out, 5), "bit 5 should be set");
+        assert!(!get_bit(&out, 6), "bit 6 (diagonal) should not be set");
+    }
+
+    #[test]
+    fn extend_output_size_matches_input() {
+        for &(w, h, r) in &[(3u16, 3u16, 1u8), (8, 8, 2), (5, 5, 3)] {
+            let byte_count = (w as usize * h as usize + 7) / 8;
+            let mask = vec![0u8; byte_count];
+            let out = extend_bit_mask(&mask, w, h, r);
+            assert_eq!(out.len(), byte_count, "size mismatch for {w}x{h} r={r}");
+        }
+    }
+}

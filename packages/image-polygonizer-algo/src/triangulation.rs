@@ -125,6 +125,7 @@ pub(crate) fn triangulate_polygon(polygon: &[u16]) -> Vec<u16> {
 
 // ── ear clipping helpers ──────────────────────────────────────────────────────
 
+
 fn is_convex(pts: &[u16], a: usize, b: usize, c: usize, poly_sign: i8) -> bool {
     let cross = orient(pts, pts, a, b, c);
     poly_sign >= 0 && cross > 0 || cross < 0
@@ -341,6 +342,104 @@ fn flip_edges_advanced(pts: &[u16], poly_sign: i8, tris: &mut Vec<usize>, max_pa
             tris[ib + 2] = f2c;
             changed = true;
             break 'el;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_regular_polygon_u16(n: usize, cx: u16, cy: u16, r: u16) -> Vec<u16> {
+        use std::f32::consts::PI;
+        let mut pts = Vec::with_capacity(n * 2);
+        for i in 0..n {
+            let angle = 2.0 * PI * i as f32 / n as f32;
+            let x = cx as f32 + r as f32 * angle.cos();
+            let y = cy as f32 + r as f32 * angle.sin();
+            pts.push(x.round() as u16);
+            pts.push(y.round() as u16);
+        }
+        pts
+    }
+
+    #[test]
+    fn test_empty_polygon() {
+        assert_eq!(triangulate_polygon(&[]), vec![]);
+    }
+
+    #[test]
+    fn test_single_vertex() {
+        assert_eq!(triangulate_polygon(&[5, 5]), vec![]);
+    }
+
+    #[test]
+    fn test_two_vertices() {
+        assert_eq!(triangulate_polygon(&[0, 0, 10, 0]), vec![]);
+    }
+
+    #[test]
+    fn test_triangle() {
+        let pts = &[0u16, 0, 100, 0, 50, 100];
+        let result = triangulate_polygon(pts);
+        assert_eq!(result.len(), 3);
+        let mut sorted = result.clone();
+        sorted.sort();
+        assert_eq!(sorted, &[0, 1, 2]);
+    }
+
+    #[test]
+    fn test_quad() {
+        let pts = &[0u16, 0, 10, 0, 10, 10, 0, 10];
+        let result = triangulate_polygon(pts);
+        assert_eq!(result.len(), 6);
+        assert!(result.iter().all(|&v| v <= 3));
+        for i in 0..2 {
+            let a = result[i * 3] as usize;
+            let b = result[i * 3 + 1] as usize;
+            let c = result[i * 3 + 2] as usize;
+            assert!(a != b && b != c && a != c);
+        }
+    }
+
+    #[test]
+    fn test_pentagon() {
+        let pts = &[50u16, 0, 100, 75, 75, 150, 25, 150, 0, 75];
+        let result = triangulate_polygon(pts);
+        assert_eq!(result.len(), 9);
+        assert!(result.iter().all(|&v| v <= 4));
+    }
+
+    #[test]
+    fn test_duplicate_closing_vertex() {
+        // Square with closing vertex equal to the first; should be treated as 4-vertex polygon.
+        let pts = &[0u16, 0, 10, 0, 10, 10, 0, 10, 0, 0];
+        let result = triangulate_polygon(pts);
+        assert_eq!(result.len(), 6);
+        assert!(result.iter().all(|&v| v <= 3));
+    }
+
+    #[test]
+    fn test_hexagon() {
+        let pts = &[10u16, 0, 20, 0, 25, 9, 20, 17, 10, 17, 5, 9];
+        let result = triangulate_polygon(pts);
+        assert_eq!(result.len(), 12);
+        assert!(result.iter().all(|&v| v <= 5));
+    }
+
+    #[test]
+    fn test_octagon_n_minus_2() {
+        let pts = make_regular_polygon_u16(8, 100, 100, 80);
+        let result = triangulate_polygon(&pts);
+        assert_eq!(result.len(), (8 - 2) * 3);
+    }
+
+    #[test]
+    fn test_n_minus_2_triangle_rule() {
+        for n in 3..=8usize {
+            let pts = make_regular_polygon_u16(n, 100, 100, 50);
+            let result = triangulate_polygon(&pts);
+            assert_eq!(result.len(), (n - 2) * 3, "Failed for n={}", n);
         }
     }
 }

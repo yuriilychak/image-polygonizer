@@ -945,3 +945,109 @@ pub(crate) fn pg_filter_contained(contours: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
         .filter_map(|(i, c)| if !removed[i] { Some(c) } else { None })
         .collect()
 }
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── contour_to_polygon ────────────────────────────────────────────────────
+
+    #[test]
+    fn rectangle_contour_produces_valid_polygon() {
+        let contour: Vec<u16> = vec![
+            10, 10, 11, 10, 12, 10, 13, 10, 14, 10, 15, 10, 16, 10, 17, 10, 18, 10, 19, 10,
+            20, 10, 21, 10, 22, 10, 23, 10, 24, 10, 25, 10, 26, 10, 27, 10, 28, 10, 29, 10,
+            30, 10, 30, 11, 30, 12, 30, 13, 30, 14, 30, 15, 30, 16, 30, 17, 30, 18, 30, 19,
+            30, 20, 29, 20, 28, 20, 27, 20, 26, 20, 25, 20, 24, 20, 23, 20, 22, 20, 21, 20,
+            20, 20, 19, 20, 18, 20, 17, 20, 16, 20, 15, 20, 14, 20, 13, 20, 12, 20, 11, 20,
+            10, 20, 10, 19, 10, 18, 10, 17, 10, 16, 10, 15, 10, 14, 10, 13, 10, 12, 10, 11,
+        ];
+        let result = contour_to_polygon(&contour, 2, 32);
+        assert!(result.len() >= 6, "polygon too small: {:?}", result);
+        assert_eq!(result.len() % 2, 0, "odd number of coords");
+        assert!(
+            result.len() / 2 <= 32,
+            "too many vertices: {}",
+            result.len() / 2
+        );
+    }
+
+    #[test]
+    fn tiny_contour_returned_early() {
+        // 2 points → step1 returns < 6 elements, function returns early
+        let contour: Vec<u16> = vec![5, 5, 6, 5];
+        let result = contour_to_polygon(&contour, 1, 32);
+        assert!(result.len() < 6);
+    }
+
+    #[test]
+    fn max_point_count_respected() {
+        let mut contour = Vec::new();
+        let (cx, cy, r) = (50u16, 50u16, 30u16);
+        for i in 0..40 {
+            let angle = std::f32::consts::PI * 2.0 * i as f32 / 40.0;
+            let x = (cx as f32 + r as f32 * angle.cos()).round() as u16;
+            let y = (cy as f32 + r as f32 * angle.sin()).round() as u16;
+            contour.push(x);
+            contour.push(y);
+        }
+        let max = 8u8;
+        let result = contour_to_polygon(&contour, 3, max);
+        let vertex_count = result.len() / 2;
+        assert!(
+            vertex_count <= max as usize,
+            "got {} vertices, max={}",
+            vertex_count,
+            max
+        );
+        assert_eq!(result.len() % 2, 0);
+    }
+
+    #[test]
+    fn empty_contour_returns_empty() {
+        let result = contour_to_polygon(&[], 2, 32);
+        assert!(result.is_empty());
+    }
+
+    // ── pg_filter_contained ───────────────────────────────────────────────────
+
+    #[test]
+    fn filter_no_containment_keeps_all() {
+        let poly1 = vec![0u16, 0, 10, 0, 10, 10, 0, 10];
+        let poly2 = vec![100u16, 100, 200, 100, 200, 200, 100, 200];
+        let result = pg_filter_contained(vec![poly1, poly2]);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn filter_single_polygon_unchanged() {
+        let poly = vec![0u16, 0, 10, 0, 10, 10, 0, 10];
+        let result = pg_filter_contained(vec![poly]);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn filter_empty_input_returns_empty() {
+        let result = pg_filter_contained(vec![]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn filter_nested_removes_inner() {
+        let outer = vec![0u16, 0, 200, 0, 200, 200, 0, 200];
+        let inner = vec![50u16, 50, 100, 50, 100, 100, 50, 100];
+        let result = pg_filter_contained(vec![outer.clone(), inner]);
+        assert_eq!(result.len(), 1, "inner polygon should have been removed");
+        assert_eq!(result[0], outer);
+    }
+
+    #[test]
+    fn filter_intersecting_keeps_both() {
+        let poly1 = vec![0u16, 0, 100, 0, 100, 100, 0, 100];
+        let poly2 = vec![50u16, 50, 150, 50, 150, 150, 50, 150];
+        let result = pg_filter_contained(vec![poly1, poly2]);
+        assert_eq!(result.len(), 2);
+    }
+}

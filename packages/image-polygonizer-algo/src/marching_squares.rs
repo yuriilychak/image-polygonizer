@@ -269,3 +269,115 @@ pub(crate) fn extract_all_outer_contours(
 
     contours
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_mask(width: usize, height: usize) -> Vec<u8> {
+        vec![0u8; (width * height + 7) / 8]
+    }
+
+    fn set_bit(mask: &mut [u8], idx: usize) {
+        mask[idx >> 3] |= 1 << (idx & 7);
+    }
+
+    fn set_rect(mask: &mut [u8], width: usize, x0: usize, y0: usize, x1: usize, y1: usize) {
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                set_bit(mask, y * width + x);
+            }
+        }
+    }
+
+    #[test]
+    fn test_empty_mask_no_contours() {
+        let mask = vec![0u8; 4];
+        let result = extract_all_outer_contours(&mask, 5, 5, 0);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_single_pixel_one_contour() {
+        let mut mask = make_mask(10, 10);
+        set_bit(&mut mask, 5 * 10 + 5);
+        let result = extract_all_outer_contours(&mask, 10, 10, 1);
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].is_empty());
+    }
+
+    #[test]
+    fn test_filled_rect_one_contour() {
+        let mut mask = make_mask(20, 20);
+        set_rect(&mut mask, 20, 7, 7, 12, 12);
+        let result = extract_all_outer_contours(&mask, 20, 20, 1);
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].is_empty());
+    }
+
+    #[test]
+    fn test_two_blocks_two_contours() {
+        let mut mask = make_mask(30, 10);
+        set_rect(&mut mask, 30, 2, 2, 5, 5);
+        set_rect(&mut mask, 30, 20, 2, 23, 5);
+        let result = extract_all_outer_contours(&mask, 30, 10, 1);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_fully_filled_mask_no_panic() {
+        let w: usize = 8;
+        let h: usize = 8;
+        let mut mask = make_mask(w, h);
+        set_rect(&mut mask, w, 0, 0, w - 1, h - 1);
+        // Just verify it doesn't panic
+        let _result = extract_all_outer_contours(&mask, w as u16, h as u16, 1);
+    }
+
+    #[test]
+    fn test_large_mask_valid_coords() {
+        let w: usize = 50;
+        let h: usize = 50;
+        let mut mask = make_mask(w, h);
+        set_rect(&mut mask, w, 20, 20, 29, 29);
+        let result = extract_all_outer_contours(&mask, w as u16, h as u16, 2);
+        assert_eq!(result.len(), 1);
+        assert!(!result[0].is_empty());
+        for &v in &result[0] {
+            assert!(v < w as u16, "coordinate {} out of bounds for width {}", v, w);
+        }
+    }
+
+    #[test]
+    fn test_padding_excludes_corner_pixel() {
+        // Pixel at (0,0) is outside the scan area when padding=2
+        let mut mask = make_mask(10, 10);
+        set_bit(&mut mask, 0 * 10 + 0);
+        let result = extract_all_outer_contours(&mask, 10, 10, 2);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_contour_coordinates_account_for_padding() {
+        // Block at (5,5)-(9,9), pad=1 → contour coords in [4..=9]
+        let w: usize = 15;
+        let h: usize = 15;
+        let pad: u8 = 1;
+        let mut mask = make_mask(w, h);
+        set_rect(&mut mask, w, 5, 5, 9, 9);
+        let result = extract_all_outer_contours(&mask, w as u16, h as u16, pad);
+        assert_eq!(result.len(), 1);
+        let contour = &result[0];
+        assert!(!contour.is_empty());
+        // Even indices are x, odd are y; both should be in [4..=9]
+        for (i, &v) in contour.iter().enumerate() {
+            let axis = if i % 2 == 0 { "x" } else { "y" };
+            assert!(
+                (4..=9).contains(&v),
+                "{} coordinate {} out of expected range [4, 9]",
+                axis,
+                v
+            );
+        }
+    }
+}
