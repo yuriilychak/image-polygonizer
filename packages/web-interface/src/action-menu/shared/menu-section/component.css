@@ -8,12 +8,31 @@
 }
 
 .menu-section-header {
-    padding: 8px 16px;
-    font-size: 16px;
+    padding: 4px 8px;
+    font-size: 14px;
     font-weight: bold;
     display: flex;
     flex-direction: row;
     gap: 4px;
+}
+
+.menu-section-content {
+    width: calc(100%-32px);
+    display: flex;
+    flex-direction: column;
+    padding: 0 8px;
+    box-sizing: border-box;
+}
+
+@media screen and (min-width: 960px) {
+    .menu-section-header {
+        padding: 8px 16px;
+        font-size: 16px;
+    }
+
+    .menu-section-content {
+        padding: 0 16px;
+    }
 }
 
 .menu-section-checkbox {
@@ -29,14 +48,6 @@
 .menu-section-title {
     user-select: none;
     flex: 1;
-}
-
-.menu-section-content {
-    width: calc(100%-32px);
-    display: flex;
-    flex-direction: column;
-    padding: 0 16px;
-    box-sizing: border-box;
 }
 
 .menu-section-divider {

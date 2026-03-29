@@ -26,7 +26,8 @@ export type ReducerAction =
   | 'openExportModal'
   | 'closeExportModal'
   | 'toggleSharedExportConfig'
-  | 'setFileCropOption';
+  | 'setFileCropOption'
+  | 'setLowResolution'
 
 export type ExportAction = 'exportPolygons' | 'exportTriangles' | 'cancelExport' | 'submitExport';
 
@@ -41,6 +42,7 @@ export type SettingChangeCallback = (id: ImageConfigKey, value: number) => void;
 export type ImageActionCallback = (action: ReducerAction, id: string, data?: any) => void;
 
 export type ReducerState = {
+  isLowResolution: boolean;
   isExportModalOpen: boolean;
   projectName: string;
   languageIndex: number;

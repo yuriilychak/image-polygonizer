@@ -10,6 +10,7 @@ import './component.css';
 const App: FC = () => {
     const {
         t,
+        isLowResolution,
         isExportModalOpen,
         images,
         currentImage,
@@ -42,6 +43,7 @@ const App: FC = () => {
                 currentLanguage={currentLanguage}
                 onSwitchLanguage={onSwitchLanguage}
                 disabled={disabled}
+                isLowResolution={isLowResolution}
                 buttonActions={buttonActions}
                 onActionClick={onActionClick}
                 onImageAction={onImageAction}

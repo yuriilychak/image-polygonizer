@@ -32,6 +32,8 @@ export default function useImageItem(
         return result;
     }, [outdated, hasPolygons]);
 
+    nameRef.current = localName;
+
     const isLocalNameInvalid = localName.trim() === '' || localName === label;
 
     useEffect(() => {

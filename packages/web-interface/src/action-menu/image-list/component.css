@@ -1,5 +1,5 @@
 .image-list-root {
-    flex: 1;
+    max-height: 100%;;
 }
 
 .image-list-content {

@@ -162,9 +162,11 @@ const REDUCER_ACTIONS: Record<ReducerAction, ReducerMiddleware> = {
 
         return { ...state, exportConfig: { ...exportConfig, fileConfig } };
     },
+    setLowResolution: (state, isLowResolution: boolean) => ({ ...state, isLowResolution }),
 };
 
 export const INITIAL_STATE: ReducerState = {
+    isLowResolution: window.innerWidth < 960,
     isExportModalOpen: false,
     projectName: 'New Project',
     languageIndex: 0,

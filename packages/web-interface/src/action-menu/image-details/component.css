@@ -1,5 +1,20 @@
 .image-details-content {
-    gap: 24px;
+    gap: 8px;
+    flex-direction: column;
+}
+
+@media screen and (min-width: 720px) {
+    .image-details-content {
+        flex-direction: row;
+        gap: 16px;
+    }
+}
+
+@media screen and (min-width: 960px) {
+    .image-details-content {
+        flex-direction: column;
+        gap: 24px;
+    }
 }
 
 .help-icon {

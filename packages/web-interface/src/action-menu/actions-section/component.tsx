@@ -22,6 +22,7 @@ const ActionsSection: FC<ActionsSectionProps> = ({ t, actions, onActionClick, di
         <MenuSection
             t={t}
             titleKey="menu_section_label_actions"
+            className="action-section-root"
             contentClassName="action-section-content"
         >
             {actions.map(action => (

@@ -18,6 +18,7 @@ import type {
     ImageActionCallback,
     SettingChangeCallback,
 } from './types';
+import { use } from 'i18next';
 
 export default function usePolygonizer() {
     const { t, i18n } = useTranslation();
@@ -26,6 +27,7 @@ export default function usePolygonizer() {
     const projectLoaderRef = useRef<HTMLInputElement>(null);
     const saveAnchorRef = useRef<HTMLAnchorElement>(null);
     const {
+        isLowResolution,
         isExportModalOpen,
         isInit,
         images,
@@ -194,6 +196,12 @@ export default function usePolygonizer() {
 
     useEffect(() => {
         dispatch(getReducerEvent('init'));
+
+        const listener = () => dispatch(getReducerEvent('setLowResolution', window.innerWidth < 960));
+
+        window.addEventListener('resize', listener);
+        
+        return () => window.removeEventListener('resize', listener);
     }, []);
 
     useEffect(() => {
@@ -210,6 +218,7 @@ export default function usePolygonizer() {
 
     return {
         t,
+        isLowResolution,
         isExportModalOpen,
         images,
         projectName,
