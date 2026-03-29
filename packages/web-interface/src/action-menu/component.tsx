@@ -79,7 +79,7 @@ const ActionMenu: FC<ActionMenuProps> = ({
                     height="24"
                     version="1.1"
                     viewBox="0 0 24 24"
-                    xml:space="preserve"
+                    xmlSpace="preserve"
                     xmlns="http://www.w3.org/2000/svg"
                 >
                     <path d="m0 11 10-11 4 9 10-4-5 18-12 1z" fill="#24529d" />
